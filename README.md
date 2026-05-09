@@ -13,23 +13,26 @@
 
 ## 当前状态
 
-项目目前已经完成：
+项目已完成以下阶段：
 
-1. 需求、设计、资源、技术选型和部署文档
-2. Python 单体式模块化工程骨架
-3. CLI 基础入口
-4. 基础数据库模型
-5. 占位版数据同步、信号生成、风控、模拟交易和回测链路
-6. 备份脚本
+| 阶段 | 状态 | 核心文件 |
+|------|------|---------|
+| P1 数据层 | ✅ 完成 | `data/pipeline.py`、`db/models.py` |
+| P2 特征工程 | ✅ 完成 | `feature/factors.py`（81 因子 + 9 标签）|
+| P3 模型训练 | ✅ 完成 | `model/train.py`（LightGBM/XGBoost + 时间切分）|
+| P4 策略回测 | ✅ 完成 | `strategy/engine.py`、`risk/engine.py`、`backtest/engine.py` |
+| P5 券商适配 | ✅ 完成 | `broker/base.py`、`paper.py`、`qmt.py`、`execution/engine.py` |
+| P6 可视化 | ✅ 完成 | `report/dashboard_app.py`（Streamlit 看板）|
 
-项目目前还没有完成：
-
-1. 真实 TuShare 数据接入
-2. 真实券商实盘适配器
-3. 完整特征工程和正式收益模型
-4. 可直接无人值守的生产级实盘能力
-
-这意味着当前仓库适合作为`研发起点和迭代骨架`，不应直接视为可生产实盘系统。
+具体能力：
+- Tushare 12 个数据接口（K线/财务/资金流/指数/涨跌停）增量同步
+- 81 个技术/基本面/市场因子 + 9 个预测标签
+- LightGBM/XGBoost 双模型支持，时间序列切分，IC + AUC + 夏普指标
+- 多因子排序（equal/confidence/kelly 仓位分配）
+- 完整风控（置信度/次数/仓位/流动性/黑白名单）
+- 完整回测（手续费 + 滑点 + 印花税 + 成交量限制）
+- SimBroker 全内存模拟交易 + QMT 实盘适配器
+- Streamlit 看板（权益曲线/持仓/交易日志/风控指标）
 
 ## 技术路线
 
@@ -261,24 +264,20 @@ python scripts/backup.py
 
 ## 重要限制
 
-当前版本必须明确以下限制：
-
-1. `sync-data` 仍是骨架实现，不是完整生产数据同步
-2. `paper-trade` 仅为模拟适配器，但已支持订单和持仓落库
-3. 实盘券商接口尚未接入
-4. 当前模型链路可运行，但仍属于基线实现
-5. 不应直接对接无人值守实盘
+1. `QMTBroker` 仅支持 Windows（需要 QMT 终端 + xtquant）
+2. 实盘交易前请充分在模拟环境验证
+3. `paper-trade` 模拟撮合存在局限性（不代表真实成交）
+4. 当前模型为基线版本，尚未经过充分实盘验证
 
 ## 下一步开发建议
 
-推荐按以下顺序继续开发：
+已完成 P1–P6，可按以下方向继续：
 
-1. 接入真实 TuShare 数据同步
-2. 完善 SQLite/PostgreSQL 表结构
-3. 落实真实因子和训练样本
-4. 用真实数据替换占位版信号生成
-5. 接入实盘券商适配器
-6. 增加 Streamlit 可视化页面
+1. **数据验证**：运行 `aistock sync-data --mode all` 拉取真实数据，验证数据完整性
+2. **回测验证**：用真实数据运行 `aistock run-backtest`，观察 IC、胜率、夏普是否合理
+3. **模拟实盘**：运行 `aistock paper-trade` 跑通模拟交易闭环
+4. **QMT 实盘**：在 Windows 上配置 QMT + xtquant，对接 `QMTBroker`
+5. **Streamlit 看板**：`streamlit run src/aistock/report/dashboard_app.py`
 
 ## 文档索引
 
