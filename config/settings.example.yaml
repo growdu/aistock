@@ -1,39 +1,85 @@
+# ============================================================
+# AIStock 配置文件示例
+# 复制为 config/settings.yaml 后使用
+# ============================================================
+
 app:
   name: aistock
   market_timezone: Asia/Shanghai
   data_dir: data
+  logs_dir: logs
 
+# ---- 策略配置 ----
 strategy:
+  # 观察池大小
   watchlist_size: 100
+  # 调仓间隔（分钟），低频策略可设为 240（4小时）
   rebalance_interval_minutes: 15
+  # 每次持仓标的数量
   top_n: 3
+  # 默认股票池（科创板 + 创业板）
   symbols:
-    - 300750.SZ
-    - 688041.SH
-    - 688111.SH
+    - 300750.SZ  # 宁德时代
+    - 688041.SH  # 海光信息
+    - 688111.SH  # 金山办公
+    - 688012.SH  # 中微公司
+    - 300059.SZ  # 东方财富
 
+# ---- 风控配置 ----
 risk:
+  # 每日最大交易次数（A股T+1，建议不超过5次）
   max_daily_trades: 5
+  # 每次最多操作股票数量
   max_symbols_per_trade: 3
-  max_single_position_pct: 0.1
+  # 单股最大仓位（10%）
+  max_single_position_pct: 0.10
+  # 当日最大亏损（3%止损）
   max_daily_loss_pct: 0.03
-  min_confidence_score: 0.6
+  # 最小置信度阈值，低于此值信号被拒绝
+  min_confidence_score: 0.60
+  # ST/退市股黑名单（可扩展）
+  blacklist_patterns:
+    - "*ST*"
+    - "*退市*"
 
+# ---- 模型配置 ----
 model:
+  # 主模型类型：lightgbm | xgboost
   primary_model: lightgbm
+  # 是否启用 LLM 辅助（需要 torch + transformers）
   llm_enabled: false
   llm_model_name: ""
 
+# ---- 数据源配置 ----
 data_source:
   primary_provider: tushare
+  # 是否启用新闻面数据
   enable_news: false
 
+# ---- 模拟组合配置（paper-trade 使用）----
 portfolio:
-  initial_cash: 100000
-  transaction_cost_rate: 0.001
+  initial_cash: 1_000_000.0  # 100 万初始资金
+  transaction_cost_rate: 0.0003  # 手续费 0.03%（买卖双向）
+  slippage_rate: 0.0005  # 滑点 0.05%
+  min_expected_excess_return: 0.001  # 最小期望超额收益
+
+# ---- 回测配置 ----
+backtest:
+  initial_cash: 1_000_000.0
+  transaction_cost_rate: 0.0003
   slippage_rate: 0.0005
 
-backtest:
-  initial_cash: 100000
-  transaction_cost_rate: 0.001
-  slippage_rate: 0.0005
+# ---- 券商配置（实盘时填写）----
+# broker_type: sim | qmt | gf | os
+broker:
+  broker_type: sim
+  # QMT 配置（仅 QMT 实盘时填写）
+  qmt_account: ""
+  qmt_password: ""
+  qmt_session_path: ""
+  qmt_mode: mini  # mini | ext
+  # 模拟账户配置
+  sim_initial_cash: 1_000_000.0
+  sim_transaction_cost_rate: 0.0003
+  sim_slippage_rate: 0.0005
+  sim_stamp_tax_rate: 0.001  # 印花税 0.1%（仅卖出）
