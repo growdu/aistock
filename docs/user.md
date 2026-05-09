@@ -102,6 +102,7 @@ ALERT_WEBHOOK=
 3. 风控阈值
 4. 是否启用小模型
 5. 是否启用新闻处理
+6. 初始账户资金 `portfolio.initial_cash`
 
 建议复制为 `config/settings.yaml` 后再修改，并在 `.env` 中将 `CONFIG_PATH` 指向真实文件。
 
@@ -178,15 +179,19 @@ aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date
 ### 4.5.6 生成信号
 
 ```bash
+aistock build-features
+aistock train-model
 aistock generate-signals
 ```
 
 用途：
 
-1. 执行候选标的打分
-2. 生成交易信号
-3. 应用基础风控
-4. 将结果写入数据库和报表文件
+1. `build-features` 构建日频特征和训练标签
+2. `train-model` 训练基线 LightGBM 模型
+3. `generate-signals` 执行候选标的打分
+4. 生成交易信号
+5. 应用基础风控
+6. 将结果写入数据库和报表文件
 
 输出位置：
 
@@ -210,10 +215,29 @@ aistock paper-trade
 
 用途：
 
-1. 使用模拟券商适配器提交订单
-2. 用于联调完整闭环
+1. 使用模拟券商适配器按目标权重执行调仓
+2. 支持买入、减仓和卖出
+3. 将订单写入 `trade_order`
+4. 将当前持仓写入 `portfolio_position`
+5. 按配置计入交易成本和滑点
+6. 更新账户现金、已实现盈亏和当日交易次数
+7. 用于联调完整闭环
 
-### 4.5.9 运行回测
+### 4.5.9 查看账户、订单与持仓
+
+```bash
+aistock show-account
+aistock show-orders
+aistock show-positions
+```
+
+用途：
+
+1. 查看账户可用现金、已用资金、已实现盈亏、未实现盈亏和当日交易次数
+2. 查看最近模拟订单及每笔成本
+3. 查看当前持仓权重、成本、市值和最新价格
+
+### 4.5.10 运行回测
 
 ```bash
 aistock run-backtest
@@ -222,17 +246,22 @@ aistock run-backtest
 用途：
 
 1. 基于已有数据运行基础回测
+2. 输出账户化回测曲线，包括现金、持仓市值、未实现盈亏、净值和回撤
+3. 默认计入交易成本和滑点，可通过 `backtest.transaction_cost_rate`、`backtest.slippage_rate` 调整
 
 ## 4.6 用户推荐操作流程
 
 建议每日按以下顺序使用：
 
 1. 执行 `sync-data`
-2. 执行 `generate-signals`
-3. 执行 `show-signals`
-4. 人工检查信号是否合理
-5. 如需联调，执行 `paper-trade`
-6. 收盘后执行 `run-backtest` 或复盘脚本
+2. 执行 `build-features`
+3. 执行 `train-model`
+4. 执行 `generate-signals`
+5. 执行 `show-signals`
+6. 人工检查信号是否合理
+7. 如需联调，执行 `paper-trade`
+8. 执行 `show-account`、`show-orders` 和 `show-positions` 检查结果
+9. 收盘后执行 `run-backtest` 或复盘脚本
 
 对于实盘用户，当前建议：
 
@@ -399,6 +428,8 @@ aistock sync-data
 aistock generate-signals
 aistock show-signals
 aistock paper-trade
+aistock show-orders
+aistock show-positions
 ```
 
 ## 5.4.2 定时任务运行

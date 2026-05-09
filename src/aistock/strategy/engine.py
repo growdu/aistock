@@ -17,6 +17,7 @@ def generate_signals(predictions: list[Prediction], file_config: FileConfig) -> 
                 symbol=item.symbol,
                 action=action,
                 target_weight=target_weight,
+                predicted_return=item.predicted_return,
                 reason=f"score={item.score:.3f}, confidence={item.confidence:.3f}",
             )
         )

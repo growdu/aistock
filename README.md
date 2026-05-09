@@ -119,6 +119,7 @@ cp config/settings.example.yaml config/settings.yaml
 2. `CONFIG_PATH=config/settings.yaml`
 3. `TUSHARE_TOKEN`
 4. 券商相关字段
+5. `portfolio.initial_cash`
 
 ## 4. 准备运行目录
 
@@ -156,26 +157,64 @@ aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date
 ## 8. 生成信号
 
 ```bash
+aistock build-features
+```
+
+用途：
+
+1. 从日线和基础面数据构建日频特征
+2. 生成训练标签 `target_return_1d` 和 `target_up_1d`
+3. 输出 `data/features/daily_features.parquet`
+
+## 9. 训练基线模型
+
+```bash
+aistock train-model
+```
+
+## 10. 生成信号
+
+```bash
 aistock generate-signals
 ```
 
-## 9. 查看信号
+## 11. 查看信号
 
 ```bash
 aistock show-signals
 ```
 
-## 10. 执行模拟交易
+## 12. 执行模拟交易
 
 ```bash
 aistock paper-trade
 ```
 
-## 11. 运行基础回测
+这一步会按目标权重对当前组合做模拟调仓，支持买入、减仓和卖出，并把账户、订单和持仓写入数据库。
+
+## 13. 查看账户、订单和持仓
+
+```bash
+aistock show-account
+aistock show-orders
+aistock show-positions
+```
+
+其中：
+
+1. `show-account` 会显示 `available_cash`、`realized_pnl`、`unrealized_pnl`、`total_equity`
+2. `show-orders` 会显示每笔模拟成交的成本
+3. `show-positions` 会显示持仓成本、市值和浮动盈亏
+
+## 14. 运行基础回测
 
 ```bash
 aistock run-backtest
 ```
+
+回测结果会写入 `data/reports/backtest_curve.csv`，其中包含 `available_cash`、`invested_capital`、`market_value`、`unrealized_pnl`、`equity`、`drawdown`。
+默认还会计入 `backtest.transaction_cost_rate` 和 `backtest.slippage_rate`。
+模拟交易默认也会计入 `portfolio.transaction_cost_rate` 和 `portfolio.slippage_rate`。
 
 ## 常用命令
 
@@ -185,9 +224,14 @@ aistock show-config
 aistock health-check
 aistock init-db
 aistock sync-data
+aistock build-features
+aistock train-model
 aistock generate-signals
 aistock show-signals
 aistock paper-trade
+aistock show-account
+aistock show-orders
+aistock show-positions
 aistock run-backtest
 python scripts/backup.py
 ```
@@ -220,9 +264,9 @@ python scripts/backup.py
 当前版本必须明确以下限制：
 
 1. `sync-data` 仍是骨架实现，不是完整生产数据同步
-2. `paper-trade` 仅为模拟适配器
+2. `paper-trade` 仅为模拟适配器，但已支持订单和持仓落库
 3. 实盘券商接口尚未接入
-4. 当前信号和模型逻辑仍是占位版
+4. 当前模型链路可运行，但仍属于基线实现
 5. 不应直接对接无人值守实盘
 
 ## 下一步开发建议

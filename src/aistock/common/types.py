@@ -29,6 +29,7 @@ class TradeSignal:
     symbol: str
     action: SignalAction
     target_weight: float
+    predicted_return: float
     reason: str
 
 

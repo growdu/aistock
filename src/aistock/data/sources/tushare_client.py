@@ -56,3 +56,12 @@ class TushareClient:
             start_date=start_date,
             end_date=end_date,
         )
+
+    def get_daily_basic(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        self._load()
+        return self._pro.daily_basic(
+            ts_code=ts_code,
+            start_date=start_date,
+            end_date=end_date,
+            fields="ts_code,trade_date,pe,pb,ps_ttm,dv_ratio,total_mv,circ_mv",
+        )

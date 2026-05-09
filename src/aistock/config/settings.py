@@ -41,12 +41,27 @@ class DataSourceConfig(BaseModel):
     enable_news: bool = False
 
 
+class PortfolioConfig(BaseModel):
+    initial_cash: float = 100000.0
+    transaction_cost_rate: float = 0.001
+    slippage_rate: float = 0.0005
+    min_expected_excess_return: float = 0.001
+
+
+class BacktestConfig(BaseModel):
+    initial_cash: float = 100000.0
+    transaction_cost_rate: float = 0.001
+    slippage_rate: float = 0.0005
+
+
 class FileConfig(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     strategy: StrategyConfig = Field(default_factory=StrategyConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     data_source: DataSourceConfig = Field(default_factory=DataSourceConfig)
+    portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
+    backtest: BacktestConfig = Field(default_factory=BacktestConfig)
 
 
 class RuntimeSettings(BaseSettings):

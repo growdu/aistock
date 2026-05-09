@@ -11,6 +11,8 @@ def setup_logging(level: str = "INFO", logs_dir: str = "logs", app_name: str = "
 
     root_logger = logging.getLogger()
     root_logger.setLevel(resolved_level)
+    for handler in list(root_logger.handlers):
+        handler.close()
     root_logger.handlers.clear()
 
     stream_handler = logging.StreamHandler(sys.stdout)

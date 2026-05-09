@@ -241,6 +241,8 @@ aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date
 ## 7.4 生成测试信号
 
 ```bash
+aistock build-features
+aistock train-model
 aistock generate-signals
 ```
 
@@ -256,11 +258,31 @@ aistock show-signals
 aistock paper-trade
 ```
 
-## 7.7 运行基础回测
+## 7.7 查看账户、订单和持仓
+
+```bash
+aistock show-account
+aistock show-orders
+aistock show-positions
+```
+
+说明：
+
+1. `show-account` 可用于检查账户现金、净值和盈亏口径是否正常
+2. `show-orders` 可用于检查每笔模拟成交成本是否符合预期
+3. `show-positions` 可用于检查持仓市值和浮动盈亏是否与最新行情一致
+
+## 7.8 运行基础回测
 
 ```bash
 aistock run-backtest
 ```
+
+输出：
+
+1. `data/reports/backtest_curve.csv`
+2. 回测指标摘要，包括收益、回撤、期末现金、期末持仓市值和期末净值
+3. 默认包含交易成本和滑点影响，来自 `settings.yaml` 的 `backtest` 配置
 
 ## 8. 运行模式
 
@@ -279,9 +301,14 @@ aistock prepare-runtime
 aistock show-config
 aistock health-check
 aistock sync-data
+aistock build-features
+aistock train-model
 aistock generate-signals
 aistock show-signals
 aistock paper-trade
+aistock show-account
+aistock show-orders
+aistock show-positions
 ```
 
 ## 8.2 准生产模式
@@ -307,8 +334,13 @@ crontab -e
 
 ```cron
 0 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock sync-data >> logs/data.log 2>&1
+5 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock build-features >> logs/app.log 2>&1
+10 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock train-model >> logs/app.log 2>&1
 15 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock generate-signals >> logs/app.log 2>&1
 20 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock show-signals >> logs/app.log 2>&1
+24 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock show-account >> logs/app.log 2>&1
+25 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock show-orders >> logs/app.log 2>&1
+26 9 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock show-positions >> logs/app.log 2>&1
 35 15 * * 1-5 cd /opt/aistock && . .venv/bin/activate && aistock run-backtest >> logs/app.log 2>&1
 0 16 * * 1-5 cd /opt/aistock && . .venv/bin/activate && python scripts/backup.py >> logs/backup.log 2>&1
 ```
@@ -486,7 +518,7 @@ python scripts/backup.py
 当前项目还处于骨架阶段，因此部署时必须明确：
 
 1. `sync-data` 当前是占位实现
-2. `paper-trade` 当前是模拟适配器
+2. `paper-trade` 当前是模拟适配器，但已经支持按目标权重做模拟调仓，并会写入账户、订单和持仓记录
 3. 实盘券商适配器还未接入
 4. 不应将当前版本直接视为可无人值守实盘系统
 
