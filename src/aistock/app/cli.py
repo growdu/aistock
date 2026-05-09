@@ -185,18 +185,17 @@ def _build_rebalance_plans(session) -> list[RebalancePlan]:
             confidence = signal_row.confidence if signal_row is not None else 1.0
             reason = "liquidate missing signal" if signal_row is None else "reduce to target weight"
 
-        plans.append(
-            RebalancePlan(
-                symbol=symbol,
-                side=side,
-                desired_weight=desired_weight,
-                current_weight=current_weight,
-                trade_weight=trade_weight,
-                confidence=confidence,
-                predicted_return=float(signal_row.predicted_return or 0.0) if signal_row is not None else 0.0,
-                reason=reason,
-            )
+        plan = RebalancePlan(
+            symbol=symbol,
+            side=side,
+            desired_weight=desired_weight,
+            current_weight=current_weight,
+            trade_weight=trade_weight,
+            confidence=confidence,
+            predicted_return=float(signal_row.predicted_return or 0.0) if signal_row is not None else 0.0,
+            reason=reason,
         )
+        plans.append(plan)
 
     sells = sorted(
         [plan for plan in plans if plan.side == "SELL"],
@@ -539,9 +538,24 @@ def paper_trade() -> None:
             initial_cash=file_config.portfolio.initial_cash,
             transaction_cost_rate=file_config.portfolio.transaction_cost_rate,
             slippage_rate=file_config.portfolio.slippage_rate,
+            test_mode=runtime.paper_test_mode,
         )
     )
     broker.batch_update_prices(latest_prices)
+
+    # Sync existing positions from DB into broker state so SELL orders work on re-runs
+    with session_factory() as db_session:
+        for pos in db_session.execute(select(PortfolioPosition).where(PortfolioPosition.status == "OPEN")).scalars():
+            price = latest_prices.get(pos.symbol, 0.0)
+            if price > 0 and pos.allocated_capital and pos.allocated_capital > 0:
+                shares = round(pos.allocated_capital / price)
+                if shares >= 100:
+                    broker._positions[pos.symbol] = {
+                        "volume": shares,
+                        "avg_cost": pos.entry_price or price,
+                        "realized_pnl": pos.unrealized_pnl or 0.0,
+                        "today_volume": 0,
+                    }
 
     with session_factory() as session:
         account = _load_or_create_account(session, file_config.portfolio.initial_cash)
@@ -564,7 +578,9 @@ def paper_trade() -> None:
                 typer.echo(f"skip {plan.symbol}: no valid price")
                 continue
 
-            # Compute target shares (100-share lot for A-shares)
+            # ------------------------------------------------------------------
+            # BUY branch
+            # ------------------------------------------------------------------
             if plan.side == "BUY":
                 required_return = (
                     file_config.portfolio.transaction_cost_rate
@@ -579,15 +595,18 @@ def paper_trade() -> None:
                     continue
 
                 target_notional = plan.trade_weight * portfolio_base
-                target_shares = int(target_notional / price / 100) * 100
+                # A-shares trade in 100-share lots; round UP so small notionals don't truncate to 0
+                import math
+                target_shares = math.ceil(target_notional / price / 100) * 100
                 if target_shares < 100:
+                    typer.echo(f"skip {plan.symbol}: notional={target_notional:.2f} below 1-lot cost={price * 100:.2f}")
                     continue
 
                 # Cap by available cash
                 max_affordable = account.available_cash / (
                     1 + file_config.portfolio.transaction_cost_rate + file_config.portfolio.slippage_rate
                 )
-                target_shares = min(target_shares, int(max_affordable / price / 100) * 100)
+                target_shares = min(target_shares, math.floor(max_affordable / price / 100) * 100)
                 if target_shares < 100:
                     typer.echo(f"skip {plan.symbol}: insufficient cash")
                     continue
@@ -672,12 +691,18 @@ def paper_trade() -> None:
                 if position is None or position.status != "OPEN" or position.position_weight <= 0:
                     continue
 
-                current_capital = position.allocated_capital or (position.position_weight * account.initial_cash)
-                current_market_value = position.market_value or _estimate_market_value(position, latest_prices)
-                sell_fraction = min(plan.trade_weight / max(position.position_weight, 1e-9), 1.0)
-                sell_notional = current_market_value * sell_fraction
-                sell_shares = int(sell_notional / price / 100) * 100
+                # 获取 broker 中的实际持仓股数（避免 DB market_value 含成本导致卖超）
+                broker_pos = broker._positions.get(plan.symbol, {})
+                current_shares = broker_pos.get("volume", 0)
+                if current_shares <= 0:
+                    typer.echo(f"skip {plan.symbol}: no broker position")
+                    continue
+
+                # 卖出股数：A-shares 100 股整数倍，上限为实际持仓
+                sell_shares = math.ceil(plan.trade_weight * portfolio_base / price / 100) * 100
+                sell_shares = min(sell_shares, current_shares)
                 if sell_shares < 100:
+                    typer.echo(f"skip {plan.symbol}: trade_weight={plan.trade_weight:.4f} too small for 1 lot")
                     continue
 
                 order_exec = broker.place_order(
@@ -701,12 +726,15 @@ def paper_trade() -> None:
                         + exec_notional * file_config.portfolio.slippage_rate
                         + stamp_tax
                     )
-                    released_capital = current_capital * sell_fraction
+                    released_notional = order_exec.filled_volume * (position.entry_price or price)
 
                     new_weight = max(position.position_weight - order_exec.filled_volume * exec_price / portfolio_base, 0.0)
                     position.position_weight = new_weight
-                    position.allocated_capital = max(current_capital - released_capital, 0.0)
+                    position.allocated_capital = max(
+                        (position.allocated_capital or 0.0) - released_notional, 0.0
+                    )
                     position.last_price = exec_price
+                    position.market_value = order_exec.filled_volume * exec_price
                     position.status = "OPEN" if new_weight > 1e-6 else "CLOSED"
                     if position.status == "CLOSED":
                         position.position_weight = 0.0
@@ -715,8 +743,8 @@ def paper_trade() -> None:
                         position.unrealized_pnl = 0.0
 
                     account.available_cash += exec_notional - exec_cost
-                    account.invested_capital = max(account.invested_capital - released_capital, 0.0)
-                    account.realized_pnl += exec_notional - released_capital - exec_cost
+                    account.invested_capital = max(account.invested_capital - released_notional, 0.0)
+                    account.realized_pnl += exec_notional - released_notional - exec_cost
                     account.daily_trade_count += 1
                     account.last_trade_date = _today_str()
 
@@ -727,7 +755,7 @@ def paper_trade() -> None:
                             side=order_exec.side.value,
                             target_weight=plan.desired_weight,
                             filled_weight=order_exec.filled_volume * exec_price / portfolio_base,
-                            requested_notional=sell_notional,
+                            requested_notional=plan.trade_weight * portfolio_base,
                             filled_notional=exec_notional,
                             transaction_cost=exec_notional * file_config.portfolio.transaction_cost_rate,
                             slippage_cost=exec_notional * file_config.portfolio.slippage_rate,

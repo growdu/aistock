@@ -43,6 +43,7 @@ class TradeConfig:
     stamp_tax_rate: float = 0.001  # 印花税 0.1%（仅卖出）
     min_order_value: float = 100.0  # 最小下单金额
     margin_rate: float = 1.0  # 担保物率（1 = 全额，0.5 = 两倍杠杆）
+    test_mode: bool = False  # True 时跳过市场时间检查，便于单元测试
 
 
 class SimBroker(BrokerAdapter):
@@ -81,6 +82,8 @@ class SimBroker(BrokerAdapter):
         return True
 
     def is_market_open(self) -> bool:
+        if self.cfg.test_mode:
+            return True
         now = datetime.now()
         h, m = now.hour, now.minute
         # A 股：9:30-11:30 / 13:00-15:00
@@ -96,8 +99,8 @@ class SimBroker(BrokerAdapter):
             open=price * 0.99,
             high=price * 1.01,
             low=price * 0.98,
-            volume=self._daily_volumes.get(symbol, 0),
-            amount=price * self._daily_volumes.get(symbol, 0),
+            volume=self._daily_volumes.get(symbol, 10_000_000),
+            amount=price * self._daily_volumes.get(symbol, 10_000_000),
             bid1=price * 0.999,
             ask1=price * 1.001,
             timestamp=datetime.now().isoformat(),
@@ -172,7 +175,8 @@ class SimBroker(BrokerAdapter):
 
         # 风控检查
         if order.side == OrderSide.BUY:
-            cost = volume * exec_price * (1 + self.cfg.transaction_cost_rate + self.cfg.slippage_rate)
+            # 买入：所需资金 = 股数 × 执行价 × (1 + 手续费率) + 手续费（滑点在价里已体现）
+            cost = volume * exec_price * (1 + self.cfg.transaction_cost_rate)
             if cost > self._cash - self._frozen_cash:
                 return self._reject(order_id, order, submitted_at, "insufficient cash")
             # 成交量限制

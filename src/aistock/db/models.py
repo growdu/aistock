@@ -55,6 +55,7 @@ class DailyBasic1D(Base):
     dv_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
     total_mv: Mapped[float | None] = mapped_column(Float, nullable=True)
     circ_mv: Mapped[float | None] = mapped_column(Float, nullable=True)
+    turnrate: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

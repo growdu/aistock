@@ -95,6 +95,8 @@ class RuntimeSettings(BaseSettings):
     config_path: str = ""
     # 实盘交易模式：paper（模拟）/ live（实盘）
     trading_mode: str = "paper"
+    # 测试模式：跳过市场时间检查（用于单元测试）
+    paper_test_mode: bool = False
 
 
 def load_file_config(path: str | Path) -> FileConfig:

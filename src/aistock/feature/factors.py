@@ -436,8 +436,12 @@ def build_daily_features(
     # ---- 日线基础指标 merge ----
     if not daily_basic_df.empty:
         basics = daily_basic_df.copy()
+        merge_cols = ["ts_code", "trade_date"]
+        for col in ["pe", "pb", "ps_ttm", "dv_ratio", "total_mv", "circ_mv", "turnrate"]:
+            if col in basics.columns:
+                merge_cols.append(col)
         frame = frame.merge(
-            basics[["ts_code", "trade_date", "pe", "pb", "ps_ttm", "dv_ratio", "total_mv", "circ_mv", "turnrate"]],
+            basics[merge_cols],
             on=["ts_code", "trade_date"],
             how="left",
         )
