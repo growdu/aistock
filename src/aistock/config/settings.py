@@ -54,6 +54,22 @@ class BacktestConfig(BaseModel):
     slippage_rate: float = 0.0005
 
 
+class BrokerConfig(BaseModel):
+    """券商配置。"""
+
+    broker_type: str = "sim"  # "sim" | "qmt" | "gf"（国金）| "os"（迅投）
+    # QMT 配置
+    qmt_account: str = ""
+    qmt_password: str = ""
+    qmt_session_path: str = ""
+    qmt_mode: str = "mini"  # "mini" | "ext"
+    # 模拟账户配置
+    sim_initial_cash: float = 1_000_000.0
+    sim_transaction_cost_rate: float = 0.0003
+    sim_slippage_rate: float = 0.0005
+    sim_stamp_tax_rate: float = 0.001
+
+
 class FileConfig(BaseModel):
     app: AppConfig = Field(default_factory=AppConfig)
     strategy: StrategyConfig = Field(default_factory=StrategyConfig)
@@ -62,6 +78,7 @@ class FileConfig(BaseModel):
     data_source: DataSourceConfig = Field(default_factory=DataSourceConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
+    broker: BrokerConfig = Field(default_factory=BrokerConfig)
 
 
 class RuntimeSettings(BaseSettings):
@@ -76,6 +93,8 @@ class RuntimeSettings(BaseSettings):
     broker_account_id: str = ""
     alert_webhook: str = ""
     config_path: str = ""
+    # 实盘交易模式：paper（模拟）/ live（实盘）
+    trading_mode: str = "paper"
 
 
 def load_file_config(path: str | Path) -> FileConfig:
