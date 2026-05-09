@@ -14,12 +14,12 @@ from aistock.backtest.engine import run_backtest, run_model_backtest
 from aistock.broker.base import OrderRequest
 from aistock.broker.paper import PaperBroker
 from aistock.config.settings import load_settings
-from aistock.data.pipeline import ensure_runtime_dirs, sync_market_data
+from aistock.data.pipeline import DEFAULT_WATCHLIST, ensure_runtime_dirs, sync_all, sync_market_data
 from aistock.db.base import build_engine, build_session_factory, initialize_database
 from aistock.db.models import AccountState, PortfolioPosition, SignalRecord, TradeOrder
-from aistock.feature.factors import build_basic_features, build_daily_features
+from aistock.feature.factors import build_daily_features
 from aistock.model.predict import predict_from_model, score_candidates
-from aistock.model.train import train_lightgbm
+from aistock.model.train import train_model, train_all_targets
 from aistock.report.dashboard import write_backtest_curve, write_signal_report
 from aistock.risk.engine import evaluate_signal
 from aistock.strategy.engine import generate_signals
@@ -255,25 +255,52 @@ def sync_data(
     symbols: str = typer.Option("", help="Comma-separated ts_code list, e.g. 300750.SZ,688041.SH"),
     start_date: str = typer.Option("", help="Start date in YYYYMMDD"),
     end_date: str = typer.Option("", help="End date in YYYYMMDD"),
+    mode: str = typer.Option("daily", help="Sync mode: daily (default) or all (full dataset including financials/minute)"),
+    include_minute: bool = typer.Option(False, help="Include minute-level bars (5m freq)"),
+    skip_financial: bool = typer.Option(False, help="Skip financial indicators (faster for daily sync)"),
 ) -> None:
+    """
+    Synchronize market data from Tushare.
+
+    Modes:
+        daily   - Only daily bars and daily basics (fast, suitable for daily cron)
+        all     - Full sync: daily + index + moneyflow + financials + optional minute bars
+
+    Examples:
+        aistock sync-data  # use configured watchlist, last 120 trading days
+        aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date 20241231
+        aistock sync-data --mode all --include-minute  # full sync with minute bars
+    """
     runtime, file_config = load_settings()
     initialize_database(runtime.database_url)
     today = date.today()
     resolved_end_date = end_date or today.strftime("%Y%m%d")
-    resolved_start_date = start_date or (today - timedelta(days=120)).strftime("%Y%m%d")
-    resolved_symbols = [item.strip() for item in symbols.split(",") if item.strip()] or file_config.strategy.symbols
+    resolved_start_date = start_date or (today - timedelta(days=730)).strftime("%Y%m%d")
+    resolved_symbols = [item.strip() for item in symbols.split(",") if item.strip()] or file_config.strategy.symbols or DEFAULT_WATCHLIST
 
-    sync_market_data(
-        runtime,
-        file_config,
-        symbols=resolved_symbols,
-        start_date=resolved_start_date,
-        end_date=resolved_end_date,
-    )
-    typer.echo(
-        f"market data synced for {len(resolved_symbols)} symbols "
-        f"from {resolved_start_date} to {resolved_end_date}"
-    )
+    if mode == "all":
+        results = sync_all(
+            runtime=runtime,
+            file_config=file_config,
+            symbols=resolved_symbols,
+            start_date=resolved_start_date,
+            end_date=resolved_end_date,
+            include_minute=include_minute,
+            sync_financial=not skip_financial,
+        )
+        typer.echo(f"full sync completed: {results}")
+    else:
+        sync_market_data(
+            runtime=runtime,
+            file_config=file_config,
+            symbols=resolved_symbols,
+            start_date=resolved_start_date,
+            end_date=resolved_end_date,
+        )
+        typer.echo(
+            f"daily data synced for {len(resolved_symbols)} symbols "
+            f"from {resolved_start_date} to {resolved_end_date}"
+        )
 
 
 @app.command("build-features")
@@ -299,9 +326,20 @@ def build_features_command() -> None:
 
 @app.command("train-model")
 def train_model_command(
-    target: str = typer.Option("target_return_1d", help="Target column name for training"),
-    model_name: str = typer.Option("lightgbm_daily", help="Output model name without extension"),
+    target: str = typer.Option("target_return_1d", help="Target column: target_return_1d / 3d / 5d"),
+    model_name: str = typer.Option("", help="Output model name (without extension). Default: target_modeltype_tag"),
+    model_type: str = typer.Option("lightgbm", help="Model type: lightgbm or xgboost"),
+    train_all: bool = typer.Option(False, help="Train all targets (1d, 3d, 5d) at once"),
+    tag: str = typer.Option("prod", help="Model tag (e.g. prod, test)"),
 ) -> None:
+    """
+    Train a LightGBM or XGBoost model on the feature set.
+
+    Examples:
+        aistock train-model                          # train target_return_1d with lightgbm
+        aistock train-model --target target_return_3d --model-type xgboost
+        aistock train-model --train-all              # train 1d + 3d + 5d targets
+    """
     _, file_config = load_settings()
     ensure_runtime_dirs(file_config)
 
@@ -310,12 +348,41 @@ def train_model_command(
         raise typer.BadParameter("run build-features before train-model")
 
     feature_df = pd.read_parquet(features_path)
-    model_path = Path(file_config.app.data_dir) / "models" / f"{model_name}.txt"
-    result = train_lightgbm(feature_df, target_column=target, model_path=str(model_path))
-    typer.echo(
-        f"model trained: {result.model_path} "
-        f"(metadata={result.metadata_path}, rows={result.row_count}, features={result.feature_count})"
-    )
+    model_dir = Path(file_config.app.data_dir) / "models"
+
+    if train_all:
+        results = train_all_targets(
+            features=feature_df,
+            model_dir=str(model_dir),
+            model_type=model_type,  # type: ignore[arg-type]
+            model_tag=tag,
+        )
+        for name, result in results.items():
+            typer.echo(
+                f"trained {name}: {result.model_path} "
+                f"(val_rmse={result.metrics.val_rmse:.6f}, val_ic={result.metrics.val_ic:.4f})"
+            )
+    else:
+        result = train_model(
+            frame=feature_df,
+            target_column=target,
+            model_type=model_type,  # type: ignore[arg-type]
+            model_dir=str(model_dir),
+            model_tag=tag,
+            output_name=model_name or None,
+        )
+        typer.echo(
+            f"model trained: {result.model_path}\n"
+            f"  metadata : {result.metadata_path}\n"
+            f"  report   : {result.report_path}\n"
+            f"  target   : {result.metrics.target_column}\n"
+            f"  type     : {result.metrics.model_type}\n"
+            f"  features : {result.metrics.val_rmse:.6f}\n"
+            f"  val_rmse : {result.metrics.val_rmse:.6f}\n"
+            f"  val_ic   : {result.metrics.val_ic:.4f}\n"
+            f"  best_iter: {result.metrics.best_iteration}\n"
+            f"  rows     : train={result.metrics.train_rows}, val={result.metrics.val_rows}, test={result.metrics.test_rows}"
+        )
 
 
 @app.command("generate-signals")
