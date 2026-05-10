@@ -330,14 +330,20 @@ class BacktestRiskState:
     blacklist: set[str] = field(default_factory=set)
 
     def on_day_close(self, equity: float) -> None:
-        """每日收盘后更新状态。"""
+        """每日收盘后更新状态。权益值基准为 initial_equity。"""
         self.cumulative_return = equity / 100000.0 - 1.0
         self.peak_equity = max(self.peak_equity, equity)
-        self.current_drawdown = self.peak_equity - equity
+        self.current_drawdown = self.peak_equity - equity  # 绝对金额（元）
         self.max_drawdown_seen = max(self.max_drawdown_seen, self.current_drawdown)
         # 每日重置交易计数
         self.daily_trade_count = 0
         self.day_pnl_pct = 0.0
+
+    def current_drawdown_pct(self) -> float:
+        """当前回撤比例（相对于峰值，正数表示回撤幅度）。"""
+        if self.peak_equity <= 0:
+            return 0.0
+        return self.current_drawdown / self.peak_equity
 
     def record_trade(self) -> None:
         self.daily_trade_count += 1

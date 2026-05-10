@@ -120,12 +120,14 @@ def time_split(
 
     # 默认时间边界：最近 3 年，train=前 2 年，val=第 3 年，test=最近 1 年
     now = datetime.now()
+    one_year_ago = (now - timedelta(days=365)).strftime(DATE_FORMAT)
+    two_years_ago = (now - timedelta(days=730)).strftime(DATE_FORMAT)
     if test_end is None:
         test_end = now.strftime(DATE_FORMAT)
     if val_end is None:
-        val_end = (now.replace(year=now.year - 1)).strftime(DATE_FORMAT)
+        val_end = one_year_ago
     if train_end is None:
-        train_end = (now.replace(year=now.year - 2)).strftime(DATE_FORMAT)
+        train_end = two_years_ago
 
     # 过滤标签为 NaN 的行（未来数据尚未生成）
     df = frame.dropna(subset=[target_column, "trade_date"]).copy()

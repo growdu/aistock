@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import DateTime, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aistock.db.base import Base
@@ -226,10 +226,10 @@ class MoneyFlow(Base):
     """个股资金流向。"""
 
     __tablename__ = "money_flow"
+    __table_args__ = (UniqueConstraint("ts_code", "trade_date", name="uq_money_flow_code_date"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts_code: Mapped[str] = mapped_column(String(16), index=True)
-    trade_date: Mapped[str] = mapped_column(String(8))
+    ts_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    trade_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     buy_sm_amount: Mapped[float | None] = mapped_column(Float, nullable=True)  # 小单买入额
     sell_sm_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     buy_md_amount: Mapped[float | None] = mapped_column(Float, nullable=True)  # 中单买入额
@@ -245,10 +245,10 @@ class SuspendD(Base):
     """每日停牌记录。"""
 
     __tablename__ = "suspend_d"
+    __table_args__ = (UniqueConstraint("ts_code", "trade_date", name="uq_suspend_d_code_date"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts_code: Mapped[str] = mapped_column(String(16), index=True)
-    trade_date: Mapped[str] = mapped_column(String(8))
+    ts_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    trade_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     suspend_type: Mapped[str] = mapped_column(String(16))
     suspend_reason: Mapped[str] = mapped_column(String(255), default="")
     source: Mapped[str] = mapped_column(String(32), default="tushare")
@@ -259,10 +259,10 @@ class LimitListD(Base):
     """涨跌停股票列表。"""
 
     __tablename__ = "limit_list_d"
+    __table_args__ = (UniqueConstraint("ts_code", "trade_date", name="uq_limit_list_d_code_date"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts_code: Mapped[str] = mapped_column(String(16), index=True)
-    trade_date: Mapped[str] = mapped_column(String(8))
+    ts_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    trade_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     limit_type: Mapped[int] = mapped_column(Integer)  # 1=涨停, 2=跌停
     open_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     close_price: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -274,10 +274,10 @@ class DisclosureDate(Base):
     """财报披露日期。"""
 
     __tablename__ = "disclosure_date"
+    __table_args__ = (UniqueConstraint("ts_code", "ann_date", name="uq_disclosure_code_ann"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts_code: Mapped[str] = mapped_column(String(16), index=True)
-    ann_date: Mapped[str] = mapped_column(String(8))
+    ts_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    ann_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     report_date: Mapped[str] = mapped_column(String(8))
     source: Mapped[str] = mapped_column(String(32), default="tushare")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -287,10 +287,10 @@ class BlockTrade(Base):
     """大宗交易记录。"""
 
     __tablename__ = "block_trade"
+    __table_args__ = (UniqueConstraint("ts_code", "trade_date", name="uq_block_trade_code_date"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    ts_code: Mapped[str] = mapped_column(String(16), index=True)
-    trade_date: Mapped[str] = mapped_column(String(8))
+    ts_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    trade_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     price: Mapped[float] = mapped_column(Float)
     volume: Mapped[float] = mapped_column(Float)
     amount: Mapped[float] = mapped_column(Float)
