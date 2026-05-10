@@ -407,7 +407,7 @@ def generate_signals_command() -> None:
         predictions = predict_from_model(feature_df, model_path=model_path, metadata_path=metadata_path)
         logger.info("generated predictions from trained model")
     else:
-        fallback_symbols = [item.split(".")[0] for item in file_config.strategy.symbols]
+        fallback_symbols = list(file_config.strategy.symbols)
         predictions = score_candidates(fallback_symbols)
         logger.info("trained model artifacts missing, using fallback ranking")
 
