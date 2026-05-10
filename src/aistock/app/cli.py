@@ -106,9 +106,15 @@ def _estimate_market_value(position: PortfolioPosition, latest_prices: dict[str,
     if price is not None:
         position.last_price = price
 
+    # 有成本价时用成本比例估算（allocated_capital 已按成本记录）
+    # 无成本价时用 allocated_capital 本身
     if position.entry_price and position.entry_price > 0 and price is not None:
         return allocated_capital * float(price / position.entry_price)
-    return allocated_capital
+    # 无 entry_price 时：如果 allocated_capital > 0，说明是按资金分配的历史持仓，用当前价格重算
+    # 否则返回 0
+    if allocated_capital > 0 and price is not None:
+        return allocated_capital
+    return 0.0
 
 
 def _refresh_account_snapshot(
@@ -442,6 +448,10 @@ def generate_signals_command() -> None:
         str(output),
     )
     typer.echo(f"signals written to {output}")
+    buy_count = sum(1 for s in signals if s.action.value == "BUY")
+    sell_count = sum(1 for s in signals if s.action.value == "SELL")
+    total_weight = sum(s.target_weight for s in signals)
+    typer.echo(f"summary: {len(signals)} signals ({buy_count} BUY, {sell_count} SELL), total_weight={total_weight:.3f}")
 
 
 @app.command("show-signals")
@@ -451,6 +461,9 @@ def show_signals() -> None:
     session_factory = build_session_factory(runtime.database_url)
     with session_factory() as session:
         rows = session.execute(select(SignalRecord)).scalars().all()
+        if not rows:
+            typer.echo("no signals found (run generate-signals first)")
+            return
         for row in rows:
             predicted_return_text = f"{(row.predicted_return or 0.0):.4f}"
             typer.echo(
@@ -466,6 +479,9 @@ def show_orders() -> None:
     session_factory = build_session_factory(runtime.database_url)
     with session_factory() as session:
         rows = session.execute(select(TradeOrder).order_by(TradeOrder.created_at.desc())).scalars().all()
+        if not rows:
+            typer.echo("no orders found (run paper-trade first)")
+            return
         for row in rows:
             price_text = f"{row.filled_price:.3f}" if row.filled_price is not None else "NA"
             cost_text = f"{(row.total_cost or 0.0):.2f}"

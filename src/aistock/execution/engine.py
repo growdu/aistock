@@ -108,14 +108,14 @@ class ExecutionEngine:
             elif exec_report.status == OrderStatus.REJECTED:
                 logger.warning("order rejected: %s %s — %s", exec_report.symbol, exec_report.message, order.comment)
 
-            # 累加成本
+            # 累加成本（使用配置中的费率）
             if exec_report.filled_volume > 0 and exec_report.avg_fill_price:
                 vol = exec_report.filled_volume
                 price = exec_report.avg_fill_price
-                commission = vol * price * 0.0003
-                slippage = vol * price * 0.0005
-                tax = (vol * price * 0.001) if exec_report.side == OrderSide.SELL else 0.0
-                cost_total += commission + slippage + tax
+                commission = vol * price * self.cfg.portfolio.transaction_cost_rate
+                slippage = vol * price * self.cfg.portfolio.slippage_rate
+                stamp_tax = (vol * price * 0.001) if exec_report.side == OrderSide.SELL else 0.0
+                cost_total += commission + slippage + stamp_tax
                 value_total += vol * price
 
         fills = [e for e in executions if e.status == OrderStatus.FILLED]
@@ -200,11 +200,11 @@ class ExecutionEngine:
         order_type: OrderType,
         quote: Quote,
     ) -> int:
-        """计算下单股数（100 的整数倍）。"""
+        """计算下单股数（100 的整数倍，向下取整到整手）。"""
         if price <= 0:
             return 0
         raw_shares = int(target_value / price / 100) * 100
-        # 成交量限制：单笔不超过日成交量的 5%
+        # 成交量限制：单笔不超过日成交量的 5%（按整手）
         daily_volume = getattr(quote, "volume", 0) or 0
         max_by_volume = int(daily_volume * 0.05 / 100) * 100
         return min(raw_shares, max_by_volume)

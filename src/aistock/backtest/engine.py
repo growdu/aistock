@@ -642,7 +642,7 @@ def run_model_backtest(
     metadata_path: str,
     top_n: int | None = None,
     initial_cash: float = 1_000_000.0,
-    transaction_cost_rate: float = 0.001,
+    transaction_cost_rate: float = 0.0003,
     slippage_rate: float = 0.0005,
 ) -> BacktestResult:
     """
