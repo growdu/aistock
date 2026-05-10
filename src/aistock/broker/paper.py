@@ -242,18 +242,21 @@ class SimBroker(BrokerAdapter):
             self._cash -= cost
             pos = self._positions.get(symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0})
             new_vol = pos["volume"] + volume
-            new_cost = (pos["volume"] * pos["avg_cost"] + volume * price) / new_vol
+            # avg_cost = total cost basis / total volume (cost already includes transaction fee)
+            new_cost = (pos["volume"] * pos["avg_cost"] + cost) / new_vol
             pos["volume"] = new_vol
             pos["avg_cost"] = new_cost
             pos["today_volume"] = pos.get("today_volume", 0) + volume
             self._positions[symbol] = pos
 
         else:  # SELL
-            proceeds = volume * price * (1 - self.cfg.transaction_cost_rate - self.cfg.stamp_tax_rate)
+            # 执行价扣滑点，成本费率再扣，收到现金 = volume × exec_price × (1 - cost - stamp)
+            exec_price = price * (1 - self.cfg.slippage_rate)
+            proceeds = volume * exec_price * (1 - self.cfg.transaction_cost_rate - self.cfg.stamp_tax_rate)
             self._cash += proceeds
             pos = self._positions.get(symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0})
             pos["volume"] -= volume
-            pnl = volume * (price - pos["avg_cost"])
+            pnl = volume * (exec_price - pos["avg_cost"])  # 用实际成交价算收益
             pos["realized_pnl"] = pos.get("realized_pnl", 0.0) + pnl
             if pos["volume"] <= 0:
                 self._positions.pop(symbol, None)
