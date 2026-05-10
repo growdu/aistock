@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-import lightgbm as lgb
 import pandas as pd
 
 from aistock.common.types import Prediction
@@ -45,6 +44,8 @@ def predict_feature_frame(
     model_path: str | Path,
     metadata_path: str | Path,
 ) -> pd.DataFrame:
+    import lightgbm as lgb  # deferred import: only load when actually predicting
+
     if feature_df.empty:
         return feature_df.copy()
 
