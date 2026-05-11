@@ -640,6 +640,7 @@ def paper_trade() -> None:
                 if order_exec.status == OrderStatus.FILLED and order_exec.filled_volume > 0:
                     exec_price = order_exec.avg_fill_price or price
                     exec_notional = order_exec.filled_volume * exec_price
+                    # 手续费从成交额中扣（滑点体现在成交价里，已由 broker 体现）
                     exec_cost = (
                         exec_notional * file_config.portfolio.transaction_cost_rate
                         + exec_notional * file_config.portfolio.slippage_rate
@@ -734,7 +735,7 @@ def paper_trade() -> None:
                 if order_exec.status == OrderStatus.FILLED and order_exec.filled_volume > 0:
                     exec_price = order_exec.avg_fill_price or price
                     exec_notional = order_exec.filled_volume * exec_price
-                    stamp_tax = exec_notional * 0.001
+                    stamp_tax = exec_notional * file_config.portfolio.sim_stamp_tax_rate
                     exec_cost = (
                         exec_notional * file_config.portfolio.transaction_cost_rate
                         + exec_notional * file_config.portfolio.slippage_rate
