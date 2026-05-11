@@ -250,8 +250,9 @@ with tab2:
                 if side == "BUY":
                     latest_positions[sym] = {
                         "symbol": sym,
-                        "shares": int(row.get("filled_volume", 0)),
-                        "avg_price": float(row.get("avg_price", 0)),
+                        "filled_price": float(row.get("filled_price", 0)),
+                        "filled_weight": float(row.get("filled_weight", 0)),
+                        "filled_notional": float(row.get("filled_notional", 0)),
                     }
                 elif side == "SELL" and sym in latest_positions:
                     latest_positions.pop(sym, None)
@@ -277,7 +278,8 @@ with tab3:
         if "submitted_at" in log.columns:
             log = log.sort_values("submitted_at", ascending=False)
         tab3.dataframe(log[[
-            c for c in ["submitted_at", "symbol", "side", "filled_volume", "avg_price", "pnl", "reason", "status"]
+            c for c in ["submitted_at", "symbol", "side", "filled_price",
+                        "filled_weight", "filled_notional", "transaction_cost", "total_cost"]
             if c in log.columns
         ]], use_container_width=True, hide_index=True)
 

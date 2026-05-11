@@ -622,7 +622,12 @@ def _compute_metrics(
 
 def _empty_result(config: BacktestConfig) -> BacktestResult:
     return BacktestResult(
-        config={},
+        config={
+            "initial_cash": config.initial_cash,
+            "transaction_cost_rate": config.transaction_cost_rate,
+            "slippage_rate": config.slippage_rate,
+            "position_method": config.position_method,
+        },
         metrics={"total_return": 0.0, "max_drawdown": 0.0},
         equity_curve=pd.DataFrame(),
         trades_log=[],

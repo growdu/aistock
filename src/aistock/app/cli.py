@@ -843,7 +843,7 @@ def run_backtest_command() -> None:
             transaction_cost_rate=file_config.backtest.transaction_cost_rate,
             slippage_rate=file_config.backtest.slippage_rate,
         )
-        write_backtest_curve(result.curve, str(report_path))
+        write_backtest_curve(result.equity_curve, str(report_path))
         typer.echo(result.metrics)
         typer.echo(f"backtest curve written to {report_path}")
         return
