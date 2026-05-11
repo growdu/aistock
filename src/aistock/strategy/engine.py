@@ -280,6 +280,7 @@ def generate_signals(
                 action=plan.action,
                 target_weight=plan.target_weight,
                 predicted_return=plan.predicted_return,
+                confidence=plan.confidence,
                 reason=plan.reason,
             )
         )

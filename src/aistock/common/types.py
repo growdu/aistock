@@ -30,6 +30,7 @@ class TradeSignal:
     action: SignalAction
     target_weight: float
     predicted_return: float
+    confidence: float  # 0.0–1.0, 用于 position sizing
     reason: str
 
 

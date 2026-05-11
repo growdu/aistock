@@ -440,6 +440,7 @@ def generate_signals_command() -> None:
                 "action": signal.action.value,
                 "target_weight": signal.target_weight,
                 "predicted_return": signal.predicted_return,
+                "confidence": signal.confidence,
             }
             for signal in signals
         ],
