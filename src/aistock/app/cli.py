@@ -465,9 +465,10 @@ def show_signals() -> None:
             return
         for row in rows:
             predicted_return_text = f"{(row.predicted_return or 0.0):.4f}"
+            confidence_text = f"{(row.confidence or 0.0):.3f}"
             typer.echo(
                 f"{row.symbol} {row.action} weight={row.target_weight:.3f} "
-                f"predicted_return={predicted_return_text} reason={row.reason}"
+                f"conf={confidence_text} predicted_return={predicted_return_text} reason={row.reason}"
             )
 
 
