@@ -103,16 +103,14 @@ def _estimate_market_value(position: PortfolioPosition, latest_prices: dict[str,
     if price is None:
         price = position.last_price
 
-    if price is not None:
+    if price is not None and price > 0:
         position.last_price = price
 
-    # 有成本价时用成本比例估算（allocated_capital 已按成本记录）
-    # 无成本价时用 allocated_capital 本身
-    if position.entry_price and position.entry_price > 0 and price is not None:
+    # 有成本价时用成本比例重算市值
+    if position.entry_price and position.entry_price > 0 and price is not None and price > 0:
         return allocated_capital * float(price / position.entry_price)
-    # 无 entry_price 时：如果 allocated_capital > 0，说明是按资金分配的历史持仓，用当前价格重算
-    # 否则返回 0
-    if allocated_capital > 0 and price is not None:
+    # 无成本价时（仅记录 allocated_capital）：有当前价格则用 allocated_capital
+    if allocated_capital > 0 and price is not None and price > 0:
         return allocated_capital
     return 0.0
 
