@@ -642,9 +642,9 @@ def _empty_result(config: BacktestConfig) -> BacktestResult:
 
 def run_model_backtest(
     feature_df: pd.DataFrame,
-    file_config: FileConfig,
     model_path: str,
     metadata_path: str,
+    file_config: FileConfig | None = None,
     top_n: int | None = None,
     initial_cash: float = 1_000_000.0,
     transaction_cost_rate: float = 0.0003,
