@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATA_DIR = Path("data")
 DEFAULT_REPORTS_DIR = DEFAULT_DATA_DIR / "reports"
 DEFAULT_MODELS_DIR = DEFAULT_DATA_DIR / "models"
-DEFAULT_CURVE_FILE = DEFAULT_REPORTS_DIR / "equity_curve.csv"
+DEFAULT_CURVE_FILE = DEFAULT_REPORTS_DIR / "backtest_curve.csv"
 
 
 # =============================================================================
@@ -67,7 +67,7 @@ def load_backtest_report(reports_dir: Path | None = None) -> dict | None:
 @st.cache_data
 def load_trade_log(path: Path | None = None) -> pd.DataFrame | None:
     if path is None:
-        path = DEFAULT_DATA_DIR / "trade_log.csv"
+        path = DEFAULT_REPORTS_DIR / "trade_log.csv"
     if not path.exists():
         return None
     df = pd.read_csv(path)
@@ -77,7 +77,7 @@ def load_trade_log(path: Path | None = None) -> pd.DataFrame | None:
 @st.cache_data
 def load_signals(path: Path | None = None) -> pd.DataFrame | None:
     if path is None:
-        path = DEFAULT_DATA_DIR / "signals.csv"
+        path = DEFAULT_REPORTS_DIR / "signals.csv"
     if not path.exists():
         return None
     return pd.read_csv(path)
@@ -160,7 +160,7 @@ if snap:
 else:
     st.sidebar.warning("未找到行情数据，请先运行 sync-data")
 
-curve = load_equity_curve(Path(data_dir) / "equity_curve.csv")
+curve = load_equity_curve(reports_dir / "backtest_curve.csv")
 if curve is not None and not curve.empty:
     st.sidebar.success(f"权益曲线: {len(curve)} 条记录")
 else:
@@ -239,7 +239,7 @@ with tab2:
         tab2.metric("持仓数量", n_pos)
 
     # 也尝试从 trade_log 中汇总
-    trade_log = load_trade_log(Path(data_dir) / "trade_log.csv")
+    trade_log = load_trade_log(reports_dir / "trade_log.csv")
     if trade_log is not None and not trade_log.empty:
         # 显示最新持仓（根据交易日志推算）
         if "symbol" in trade_log.columns and "side" in trade_log.columns:
@@ -272,7 +272,7 @@ with tab2:
 with tab3:
     st.subheader("交易日志")
 
-    log = load_trade_log(Path(data_dir) / "trade_log.csv")
+    log = load_trade_log(reports_dir / "trade_log.csv")
     if log is not None and not log.empty:
         if "submitted_at" in log.columns:
             log = log.sort_values("submitted_at", ascending=False)
@@ -342,7 +342,7 @@ with tab4:
 st.markdown("---")
 st.subheader("📡 最近信号")
 
-signals = load_signals(Path(data_dir) / "signals.csv")
+signals = load_signals(reports_dir / "signals.csv")
 if signals is not None and not signals.empty:
     if "trade_date" in signals.columns:
         signals = signals.sort_values("trade_date", ascending=False)

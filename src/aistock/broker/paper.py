@@ -175,11 +175,12 @@ class SimBroker(BrokerAdapter):
 
         # 风控检查
         if order.side == OrderSide.BUY:
-            # 买入：所需资金 = 股数 × 执行价 × (1 + 手续费率) + 手续费（滑点在价里已体现）
-            cost = volume * exec_price * (1 + self.cfg.transaction_cost_rate)
-            if cost > self._cash - self._frozen_cash:
+            # 买入：预估最大所需资金（用请求股数，允许在流动性限制后实际更少）
+            # exec_price 已含滑点，cost = volume × exec_price × (1 + 费率)
+            max_cost = order.volume * exec_price * (1 + self.cfg.transaction_cost_rate)
+            if max_cost > self._cash - self._frozen_cash:
                 return self._reject(order_id, order, submitted_at, "insufficient cash")
-            # 成交量限制
+            # 成交量限制（按实际成交股数更新 volume）
             max_volume_by_liq = int(quote.volume * 0.05 / 100) * 100
             if volume > max_volume_by_liq:
                 volume = max_volume_by_liq
@@ -229,11 +230,11 @@ class SimBroker(BrokerAdapter):
             else:
                 return max(order.price, quote.bid1 * (1 - self.cfg.slippage_rate))
 
-        # 市价单：买入上浮滑点，卖出下浮滑点
+        # 市价单：买入上浮滑点，卖出下浮滑点（印花税在 _apply_trade 单独处理）
         if order.side == OrderSide.BUY:
             return base_price * (1 + self.cfg.slippage_rate)
         else:
-            return base_price * (1 - self.cfg.slippage_rate - self.cfg.stamp_tax_rate)
+            return base_price * (1 - self.cfg.slippage_rate)
 
     def _apply_trade(self, symbol: str, side: OrderSide, volume: int, price: float) -> None:
         """更新持仓和现金。"""

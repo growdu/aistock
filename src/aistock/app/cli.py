@@ -21,7 +21,7 @@ from aistock.db.models import AccountState, PortfolioPosition, SignalRecord, Tra
 from aistock.feature.factors import build_daily_features
 from aistock.model.predict import predict_from_model, score_candidates
 from aistock.model.train import train_model, train_all_targets
-from aistock.report.dashboard import write_backtest_curve, write_signal_report
+from aistock.report import write_backtest_curve, write_signal_report, write_trade_log
 from aistock.risk.engine import evaluate_signal
 from aistock.strategy.engine import generate_signals
 
@@ -799,6 +799,29 @@ def paper_trade() -> None:
                 f"paper trade completed: {submitted} orders, "
                 f"available_cash={account.available_cash:.2f}, total_equity={account.total_equity:.2f}"
             )
+
+    # Export trade log for dashboard
+    orders = session.execute(
+        select(TradeOrder).order_by(TradeOrder.created_at.desc())
+    ).scalars().all()
+    trade_log_output = Path(file_config.app.data_dir) / "reports" / "trade_log.csv"
+    write_trade_log(
+        [
+            {
+                "order_id": o.order_id,
+                "symbol": o.symbol,
+                "side": o.side,
+                "filled_price": o.filled_price,
+                "filled_weight": o.filled_weight,
+                "filled_notional": o.filled_notional,
+                "transaction_cost": o.transaction_cost,
+                "total_cost": o.total_cost,
+                "submitted_at": o.created_at.isoformat() if o.created_at else "",
+            }
+            for o in orders
+        ],
+        str(trade_log_output),
+    )
 
 
 @app.command("run-backtest")

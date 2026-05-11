@@ -20,42 +20,44 @@ from aistock.db.models import AccountState, PortfolioPosition, SignalRecord, Tra
 # ---------------------------------------------------------------------------
 
 def make_market_bar_1d(symbols: list[str], n_days: int = 120) -> pd.DataFrame:
-    """Create synthetic daily OHLCV bars for given symbols."""
+    """Create synthetic daily OHLCV bars for given symbols.
+
+    Price is fixed at 50.0 for all bars so paper-trade tests have deterministic fill prices.
+    """
     records = []
     base_date = date.today() - timedelta(days=n_days)
     for sym in symbols:
         price = 50.0
         for i in range(n_days):
             trade_date = (base_date + timedelta(days=i)).strftime("%Y%m%d")
-            close = price * (1 + (hash(f"{sym}{i}") % 1000 - 500) / 50000)
-            open_ = close * (1 + (hash(f"{sym}{i}o") % 100 - 50) / 5000)
-            high = max(open_, close) * (1 + (hash(f"{sym}{i}h") % 50) / 5000)
-            low = min(open_, close) * (1 - (hash(f"{sym}{i}l") % 50) / 5000)
-            vol = abs(hash(f"{sym}{i}v")) % 5_000_000 + 1_000_000
+            close = price  # deterministic: no random walk
+            open_ = price
+            high = price * 1.01
+            low = price * 0.99
+            vol = 10_000_000
             records.append(
                 dict(
                     ts_code=sym,
                     trade_date=trade_date,
-                    open=round(open_, 2),
-                    high=round(high, 2),
-                    low=round(low, 2),
-                    close=round(close, 2),
+                    open=open_,
+                    high=high,
+                    low=low,
+                    close=close,
                     volume=vol,
-                    amount=round(close * vol, 2),
+                    amount=price * vol,
                 )
             )
-            price = close
     return pd.DataFrame(records)
 
 
 def make_daily_basic_1d(symbols: list[str], n_days: int = 120) -> pd.DataFrame:
-    """Create synthetic daily_basic rows."""
+    """Create synthetic daily_basic rows. Price fixed at 50.0 for determinism."""
     records = []
     base_date = date.today() - timedelta(days=n_days)
     for sym in symbols:
         for i in range(n_days):
             trade_date = (base_date + timedelta(days=i)).strftime("%Y%m%d")
-            close = 50.0 * (1 + (hash(f"{sym}{i}") % 500 - 250) / 10000)
+            close = 50.0  # fixed price matching market_bar_1d
             records.append(
                 dict(
                     ts_code=sym,
