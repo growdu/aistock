@@ -114,7 +114,7 @@ class ExecutionEngine:
                 price = exec_report.avg_fill_price
                 commission = vol * price * self.cfg.portfolio.transaction_cost_rate
                 slippage = vol * price * self.cfg.portfolio.slippage_rate
-                stamp_tax = (vol * price * 0.001) if exec_report.side == OrderSide.SELL else 0.0
+                stamp_tax = (vol * price * self.cfg.portfolio.sim_stamp_tax_rate) if exec_report.side == OrderSide.SELL else 0.0
                 cost_total += commission + slippage + stamp_tax
                 value_total += vol * price
 
@@ -200,7 +200,7 @@ class ExecutionEngine:
         order_type: OrderType,
         quote: Quote,
     ) -> int:
-        """计算下单股数（100 的整数倍，向下取整到整手）。"""
+        """计算下单股数（100 的整数倍，向上取整到整手）。"""
         if price <= 0:
             return 0
         raw_shares = int(target_value / price / 100) * 100
@@ -237,7 +237,11 @@ def signals_to_order_requests(
     positions: list[Position],
     order_type: OrderType = OrderType.MARKET,
 ) -> list[OrderRequest]:
-    """将信号转换为订单请求（不执行，仅转换）。"""
+    """将信号转换为订单请求（不执行，仅转换）。
+
+    Note: 使用默认 FileConfig() 设置。如需真实执行，推荐通过
+    ExecutionEngine(broker, file_config) 构造。
+    """
     pos_dict = {p.symbol: p for p in positions}
     quotes = broker.get_quotes([s.symbol for s in signals])
     engine = ExecutionEngine(broker, FileConfig())
