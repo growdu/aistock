@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -12,15 +13,14 @@ from sqlalchemy import select, text
 from aistock.app.logging import setup_logging
 from aistock.backtest.engine import run_backtest, run_model_backtest
 from aistock.broker import SimBroker, TradeConfig
-from aistock.broker.base import OrderSide, OrderStatus, OrderType, OrderRequest
-from aistock.execution import create_execution_engine
+from aistock.broker.base import OrderRequest, OrderSide, OrderStatus, OrderType
 from aistock.config.settings import load_settings
 from aistock.data.pipeline import DEFAULT_WATCHLIST, ensure_runtime_dirs, sync_all, sync_market_data
 from aistock.db.base import build_engine, build_session_factory, initialize_database
 from aistock.db.models import AccountState, PortfolioPosition, SignalRecord, TradeOrder
 from aistock.feature.factors import build_daily_features
 from aistock.model.predict import predict_from_model, score_candidates
-from aistock.model.train import train_model, train_all_targets
+from aistock.model.train import train_all_targets, train_model
 from aistock.report import write_backtest_curve, write_signal_report, write_trade_log
 from aistock.risk.engine import evaluate_signal
 from aistock.strategy.engine import generate_signals
@@ -95,7 +95,9 @@ def _reset_daily_trade_counter(account: AccountState) -> None:
         account.last_trade_date = _today_str()
 
 
-def _estimate_market_value(position: PortfolioPosition, latest_prices: dict[str, float] | None = None) -> float:
+def _estimate_market_value(
+    position: PortfolioPosition, latest_prices: dict[str, float] | None = None
+) -> float:
     allocated_capital = position.allocated_capital or 0.0
     price = None
     if latest_prices is not None:
@@ -146,7 +148,9 @@ def _refresh_account_snapshot(
         unrealized_pnl_total += unrealized_pnl
 
     if invested_capital > 0 and account.available_cash == account.initial_cash:
-        account.available_cash = max(account.initial_cash + account.realized_pnl - invested_capital, 0.0)
+        account.available_cash = max(
+            account.initial_cash + account.realized_pnl - invested_capital, 0.0
+        )
 
     account.invested_capital = invested_capital
     account.unrealized_pnl = unrealized_pnl_total
@@ -161,9 +165,7 @@ def _build_rebalance_plans(session) -> list[RebalancePlan]:
         if position.status == "OPEN"
     }
     desired_by_symbol = {
-        row.symbol: row
-        for row in signal_rows
-        if row.action == "BUY" and row.target_weight > 0
+        row.symbol: row for row in signal_rows if row.action == "BUY" and row.target_weight > 0
     }
     symbols = sorted(set(positions) | set(desired_by_symbol))
 
@@ -196,7 +198,9 @@ def _build_rebalance_plans(session) -> list[RebalancePlan]:
             current_weight=current_weight,
             trade_weight=trade_weight,
             confidence=confidence,
-            predicted_return=float(signal_row.predicted_return or 0.0) if signal_row is not None else 0.0,
+            predicted_return=float(signal_row.predicted_return or 0.0)
+            if signal_row is not None
+            else 0.0,
             reason=reason,
         )
         plans.append(plan)
@@ -217,7 +221,9 @@ def _build_rebalance_plans(session) -> list[RebalancePlan]:
 @app.callback()
 def main() -> None:
     runtime, file_config = load_settings()
-    setup_logging(runtime.log_level, logs_dir=file_config.app.logs_dir, app_name=file_config.app.name)
+    setup_logging(
+        runtime.log_level, logs_dir=file_config.app.logs_dir, app_name=file_config.app.name
+    )
 
 
 @app.command("prepare-runtime")
@@ -241,7 +247,9 @@ def show_config() -> None:
     typer.echo(f"initial_cash={file_config.portfolio.initial_cash}")
     typer.echo(f"portfolio_transaction_cost_rate={file_config.portfolio.transaction_cost_rate}")
     typer.echo(f"portfolio_slippage_rate={file_config.portfolio.slippage_rate}")
-    typer.echo(f"portfolio_min_expected_excess_return={file_config.portfolio.min_expected_excess_return}")
+    typer.echo(
+        f"portfolio_min_expected_excess_return={file_config.portfolio.min_expected_excess_return}"
+    )
     typer.echo(f"backtest_initial_cash={file_config.backtest.initial_cash}")
     typer.echo(f"backtest_transaction_cost_rate={file_config.backtest.transaction_cost_rate}")
     typer.echo(f"backtest_slippage_rate={file_config.backtest.slippage_rate}")
@@ -259,9 +267,13 @@ def sync_data(
     symbols: str = typer.Option("", help="Comma-separated ts_code list, e.g. 300750.SZ,688041.SH"),
     start_date: str = typer.Option("", help="Start date in YYYYMMDD"),
     end_date: str = typer.Option("", help="End date in YYYYMMDD"),
-    mode: str = typer.Option("daily", help="Sync mode: daily (default) or all (full dataset including financials/minute)"),
+    mode: str = typer.Option(
+        "daily", help="Sync mode: daily (default) or all (full dataset including financials/minute)"
+    ),
     include_minute: bool = typer.Option(False, help="Include minute-level bars (5m freq)"),
-    skip_financial: bool = typer.Option(False, help="Skip financial indicators (faster for daily sync)"),
+    skip_financial: bool = typer.Option(
+        False, help="Skip financial indicators (faster for daily sync)"
+    ),
 ) -> None:
     """
     Synchronize market data from Tushare.
@@ -280,7 +292,11 @@ def sync_data(
     today = date.today()
     resolved_end_date = end_date or today.strftime("%Y%m%d")
     resolved_start_date = start_date or (today - timedelta(days=730)).strftime("%Y%m%d")
-    resolved_symbols = [item.strip() for item in symbols.split(",") if item.strip()] or file_config.strategy.symbols or DEFAULT_WATCHLIST
+    resolved_symbols = (
+        [item.strip() for item in symbols.split(",") if item.strip()]
+        or file_config.strategy.symbols
+        or DEFAULT_WATCHLIST
+    )
 
     if mode == "all":
         results = sync_all(
@@ -321,7 +337,9 @@ def build_features_command() -> None:
         raise typer.BadParameter("run sync-data before build-features")
 
     market_df = pd.read_parquet(market_path)
-    daily_basic_df = pd.read_parquet(daily_basic_path) if daily_basic_path.exists() else pd.DataFrame()
+    daily_basic_df = (
+        pd.read_parquet(daily_basic_path) if daily_basic_path.exists() else pd.DataFrame()
+    )
     features = build_daily_features(market_df, daily_basic_df)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     features.to_parquet(output_path, index=False)
@@ -330,8 +348,12 @@ def build_features_command() -> None:
 
 @app.command("train-model")
 def train_model_command(
-    target: str = typer.Option("target_return_1d", help="Target column: target_return_1d / 3d / 5d"),
-    model_name: str = typer.Option("", help="Output model name (without extension). Default: target_modeltype_tag"),
+    target: str = typer.Option(
+        "target_return_1d", help="Target column: target_return_1d / 3d / 5d"
+    ),
+    model_name: str = typer.Option(
+        "", help="Output model name (without extension). Default: target_modeltype_tag"
+    ),
     model_type: str = typer.Option("lightgbm", help="Model type: lightgbm or xgboost"),
     train_all: bool = typer.Option(False, help="Train all targets (1d, 3d, 5d) at once"),
     tag: str = typer.Option("prod", help="Model tag (e.g. prod, test)"),
@@ -402,7 +424,9 @@ def generate_signals_command() -> None:
 
     if features_path.exists() and model_path.exists() and metadata_path.exists():
         feature_df = pd.read_parquet(features_path)
-        predictions = predict_from_model(feature_df, model_path=model_path, metadata_path=metadata_path)
+        predictions = predict_from_model(
+            feature_df, model_path=model_path, metadata_path=metadata_path
+        )
         logger.info("generated predictions from trained model")
     else:
         fallback_symbols = list(file_config.strategy.symbols)
@@ -450,7 +474,9 @@ def generate_signals_command() -> None:
     buy_count = sum(1 for s in signals if s.action.value == "BUY")
     sell_count = sum(1 for s in signals if s.action.value == "SELL")
     total_weight = sum(s.target_weight for s in signals)
-    typer.echo(f"summary: {len(signals)} signals ({buy_count} BUY, {sell_count} SELL), total_weight={total_weight:.3f}")
+    typer.echo(
+        f"summary: {len(signals)} signals ({buy_count} BUY, {sell_count} SELL), total_weight={total_weight:.3f}"
+    )
 
 
 @app.command("show-signals")
@@ -478,7 +504,11 @@ def show_orders() -> None:
     initialize_database(runtime.database_url)
     session_factory = build_session_factory(runtime.database_url)
     with session_factory() as session:
-        rows = session.execute(select(TradeOrder).order_by(TradeOrder.created_at.desc())).scalars().all()
+        rows = (
+            session.execute(select(TradeOrder).order_by(TradeOrder.created_at.desc()))
+            .scalars()
+            .all()
+        )
         if not rows:
             typer.echo("no orders found (run paper-trade first)")
             return
@@ -501,7 +531,11 @@ def show_positions() -> None:
         account = _load_or_create_account(session, file_config.portfolio.initial_cash)
         _refresh_account_snapshot(session, account, latest_prices)
         session.commit()
-        rows = session.execute(select(PortfolioPosition).order_by(PortfolioPosition.symbol)).scalars().all()
+        rows = (
+            session.execute(select(PortfolioPosition).order_by(PortfolioPosition.symbol))
+            .scalars()
+            .all()
+        )
         for row in rows:
             price_text = f"{row.last_price:.3f}" if row.last_price is not None else "NA"
             capital_text = f"{(row.allocated_capital or 0.0):.2f}"
@@ -561,7 +595,9 @@ def paper_trade() -> None:
 
     # Sync existing positions from DB into broker state so SELL orders work on re-runs
     with session_factory() as db_session:
-        for pos in db_session.execute(select(PortfolioPosition).where(PortfolioPosition.status == "OPEN")).scalars():
+        for pos in db_session.execute(
+            select(PortfolioPosition).where(PortfolioPosition.status == "OPEN")
+        ).scalars():
             price = latest_prices.get(pos.symbol, 0.0)
             if price > 0 and pos.allocated_capital and pos.allocated_capital > 0:
                 shares = round(pos.allocated_capital / price)
@@ -577,7 +613,9 @@ def paper_trade() -> None:
         account = _load_or_create_account(session, file_config.portfolio.initial_cash)
         _reset_daily_trade_counter(account)
         _refresh_account_snapshot(session, account, latest_prices)
-        remaining_trade_slots = max(0, file_config.risk.max_daily_trades - account.daily_trade_count)
+        remaining_trade_slots = max(
+            0, file_config.risk.max_daily_trades - account.daily_trade_count
+        )
         max_orders = min(remaining_trade_slots, file_config.risk.max_symbols_per_trade)
         portfolio_base = max(account.total_equity, 1.0)
         plans = _build_rebalance_plans(session)
@@ -612,15 +650,18 @@ def paper_trade() -> None:
 
                 target_notional = plan.trade_weight * portfolio_base
                 # A-shares trade in 100-share lots; round UP so small notionals don't truncate to 0
-                import math
                 target_shares = math.ceil(target_notional / price / 100) * 100
                 if target_shares < 100:
-                    typer.echo(f"skip {plan.symbol}: notional={target_notional:.2f} below 1-lot cost={price * 100:.2f}")
+                    typer.echo(
+                        f"skip {plan.symbol}: notional={target_notional:.2f} below 1-lot cost={price * 100:.2f}"
+                    )
                     continue
 
                 # Cap by available cash
                 max_affordable = account.available_cash / (
-                    1 + file_config.portfolio.transaction_cost_rate + file_config.portfolio.slippage_rate
+                    1
+                    + file_config.portfolio.transaction_cost_rate
+                    + file_config.portfolio.slippage_rate
                 )
                 target_shares = min(target_shares, math.floor(max_affordable / price / 100) * 100)
                 if target_shares < 100:
@@ -652,7 +693,9 @@ def paper_trade() -> None:
                         session.add(
                             PortfolioPosition(
                                 symbol=order_exec.symbol,
-                                position_weight=order_exec.filled_volume * exec_price / portfolio_base,
+                                position_weight=order_exec.filled_volume
+                                * exec_price
+                                / portfolio_base,
                                 allocated_capital=exec_notional,
                                 entry_price=exec_price,
                                 last_price=exec_price,
@@ -664,10 +707,18 @@ def paper_trade() -> None:
                         )
                     else:
                         old_capital = position.allocated_capital or 0.0
-                        old_shares = old_capital / position.entry_price if position.entry_price and position.entry_price > 0 else 0
+                        old_shares = (
+                            old_capital / position.entry_price
+                            if position.entry_price and position.entry_price > 0
+                            else 0
+                        )
                         new_shares = exec_notional / exec_price
                         combined_notional = old_capital + exec_notional
-                        position.entry_price = combined_notional / (old_shares + new_shares) if (old_shares + new_shares) > 0 else exec_price
+                        position.entry_price = (
+                            combined_notional / (old_shares + new_shares)
+                            if (old_shares + new_shares) > 0
+                            else exec_price
+                        )
                         position.position_weight = combined_notional / portfolio_base
                         position.allocated_capital = combined_notional
                         position.last_price = exec_price
@@ -689,7 +740,8 @@ def paper_trade() -> None:
                             filled_weight=order_exec.filled_volume * exec_price / portfolio_base,
                             requested_notional=target_notional,
                             filled_notional=exec_notional,
-                            transaction_cost=exec_notional * file_config.portfolio.transaction_cost_rate,
+                            transaction_cost=exec_notional
+                            * file_config.portfolio.transaction_cost_rate,
                             slippage_cost=exec_notional * file_config.portfolio.slippage_rate,
                             total_cost=exec_cost,
                             filled_price=exec_price,
@@ -719,7 +771,9 @@ def paper_trade() -> None:
                 sell_shares = math.ceil(plan.trade_weight * portfolio_base / price / 100) * 100
                 sell_shares = min(sell_shares, current_shares)
                 if sell_shares < 100:
-                    typer.echo(f"skip {plan.symbol}: trade_weight={plan.trade_weight:.4f} too small for 1 lot")
+                    typer.echo(
+                        f"skip {plan.symbol}: trade_weight={plan.trade_weight:.4f} too small for 1 lot"
+                    )
                     continue
 
                 order_exec = broker.place_order(
@@ -737,7 +791,7 @@ def paper_trade() -> None:
                 if order_exec.status == OrderStatus.FILLED and order_exec.filled_volume > 0:
                     exec_price = order_exec.avg_fill_price or price
                     exec_notional = order_exec.filled_volume * exec_price
-                    stamp_tax = exec_notional * file_config.portfolio.sim_stamp_tax_rate
+                    stamp_tax = exec_notional * file_config.broker.sim_stamp_tax_rate
                     exec_cost = (
                         exec_notional * file_config.portfolio.transaction_cost_rate
                         + exec_notional * file_config.portfolio.slippage_rate
@@ -745,7 +799,11 @@ def paper_trade() -> None:
                     )
                     released_notional = order_exec.filled_volume * (position.entry_price or price)
 
-                    new_weight = max(position.position_weight - order_exec.filled_volume * exec_price / portfolio_base, 0.0)
+                    new_weight = max(
+                        position.position_weight
+                        - order_exec.filled_volume * exec_price / portfolio_base,
+                        0.0,
+                    )
                     position.position_weight = new_weight
                     position.allocated_capital = max(
                         (position.allocated_capital or 0.0) - released_notional, 0.0
@@ -760,7 +818,9 @@ def paper_trade() -> None:
                         position.unrealized_pnl = 0.0
 
                     account.available_cash += exec_notional - exec_cost
-                    account.invested_capital = max(account.invested_capital - released_notional, 0.0)
+                    account.invested_capital = max(
+                        account.invested_capital - released_notional, 0.0
+                    )
                     account.realized_pnl += exec_notional - released_notional - exec_cost
                     account.daily_trade_count += 1
                     account.last_trade_date = _today_str()
@@ -774,7 +834,8 @@ def paper_trade() -> None:
                             filled_weight=order_exec.filled_volume * exec_price / portfolio_base,
                             requested_notional=plan.trade_weight * portfolio_base,
                             filled_notional=exec_notional,
-                            transaction_cost=exec_notional * file_config.portfolio.transaction_cost_rate,
+                            transaction_cost=exec_notional
+                            * file_config.portfolio.transaction_cost_rate,
                             slippage_cost=exec_notional * file_config.portfolio.slippage_rate,
                             total_cost=exec_cost,
                             filled_price=exec_price,
@@ -802,9 +863,9 @@ def paper_trade() -> None:
             )
 
     # Export trade log for dashboard
-    orders = session.execute(
-        select(TradeOrder).order_by(TradeOrder.created_at.desc())
-    ).scalars().all()
+    orders = (
+        session.execute(select(TradeOrder).order_by(TradeOrder.created_at.desc())).scalars().all()
+    )
     trade_log_output = Path(file_config.app.data_dir) / "reports" / "trade_log.csv"
     write_trade_log(
         [
@@ -857,7 +918,7 @@ def run_backtest_command() -> None:
 
     df = pd.read_parquet(data_path)
     features = build_daily_features(df, pd.DataFrame())
-    result = run_backtest(features, initial_cash=file_config.backtest.initial_cash)
+    result = run_backtest(features, file_config=file_config)
     typer.echo(result)
 
 

@@ -19,6 +19,7 @@ from aistock.db.models import AccountState, PortfolioPosition, SignalRecord, Tra
 # Synthetic market data factories
 # ---------------------------------------------------------------------------
 
+
 def make_market_bar_1d(symbols: list[str], n_days: int = 120) -> pd.DataFrame:
     """Create synthetic daily OHLCV bars for given symbols.
 
@@ -75,6 +76,7 @@ def make_daily_basic_1d(symbols: list[str], n_days: int = 120) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class CliSmokeTest(unittest.TestCase):
     """Tests that use synthetic data so they run without network or Tushare token."""
@@ -154,6 +156,7 @@ class CliSmokeTest(unittest.TestCase):
         model_dir.mkdir(parents=True, exist_ok=True)
         import json, joblib, numpy as np
         from sklearn.ensemble import RandomForestRegressor
+
         X = np.random.rand(20, 5)
         y = np.random.rand(20)
         model = RandomForestRegressor(n_estimators=5, random_state=42).fit(X, y)
@@ -236,7 +239,9 @@ class CliSmokeTest(unittest.TestCase):
     # paper-trade with synthetic data
     # ------------------------------------------------------------------
 
-    def _insert_signal(self, symbol: str, action: str, weight: float, ret: float, reason: str) -> None:
+    def _insert_signal(
+        self, symbol: str, action: str, weight: float, ret: float, reason: str
+    ) -> None:
         engine = create_engine(self.env["DATABASE_URL"], future=True)
         with Session(engine) as session:
             session.add(
@@ -365,10 +370,19 @@ class CliSmokeTest(unittest.TestCase):
 
         curve = pd.read_csv(self.data_dir / "reports" / "backtest_curve.csv")
         for col in (
-            "trade_date", "selected_count", "selected_weight",
-            "available_cash", "invested_capital", "market_value",
-            "unrealized_pnl", "transaction_cost", "slippage_cost",
-            "total_cost", "day_return", "equity", "drawdown",
+            "trade_date",
+            "selected_count",
+            "selected_weight",
+            "available_cash",
+            "invested_capital",
+            "market_value",
+            "unrealized_pnl",
+            "transaction_cost",
+            "slippage_cost",
+            "total_cost",
+            "day_return",
+            "equity",
+            "drawdown",
         ):
             self.assertIn(col, curve.columns)
         self.assertGreater(len(curve), 0)

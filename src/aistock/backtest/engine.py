@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,11 +22,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from aistock.common.types import Prediction, SignalAction, TradeSignal
+from aistock.common.types import Prediction, SignalAction
 from aistock.config.settings import FileConfig
 from aistock.model.predict import predict_feature_frame
-from aistock.risk.engine import BacktestRiskState, RiskEngine
-from aistock.strategy.engine import PositionTracker, compute_target_positions, filter_candidates, rank_signals
+from aistock.risk.engine import BacktestRiskState
+from aistock.strategy.engine import (
+    compute_target_positions,
+    rank_signals,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -203,10 +206,8 @@ def run_backtest(
         logger.info("running inference with model=%s", model_path)
         frame = predict_feature_frame(frame, model_path=model_path, metadata_path=metadata_path)
 
-    # 风控引擎
-    risk_engine = RiskEngine(file_config) if config.use_risk_engine else None
+    # 风控状态
     risk_state = BacktestRiskState()
-    position_tracker = PositionTracker()
 
     # 账户状态
     cash = config.initial_cash
@@ -225,7 +226,7 @@ def run_backtest(
     # 按日遍历
     dates = sorted(frame["trade_date"].unique())
 
-    for i, trade_date in enumerate(dates):
+    for _i, trade_date in enumerate(dates):
         date_str = str(trade_date)
         day_frame = frame[frame["trade_date"] == date_str].copy()
         if day_frame.empty:
@@ -241,7 +242,9 @@ def run_backtest(
             pos_market_value = pos.shares * current_price
             unrealized_pnl += pos_market_value - pos.shares * pos.avg_cost
 
-        market_value = sum(pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items())
+        market_value = sum(
+            pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items()
+        )
         prev_equity = equity
         equity = cash + market_value
 
@@ -264,7 +267,9 @@ def run_backtest(
             price_row = day_frame[day_frame["symbol"] == sym]
             if price_row.empty:
                 continue
-            sell_price = _trade_price(float(price_row.iloc[0]["close"]), "sell", config.slippage_rate, config)
+            sell_price = _trade_price(
+                float(price_row.iloc[0]["close"]), "sell", config.slippage_rate, config
+            )
             proceeds = pos.shares * sell_price
             transaction_cost = proceeds * config.transaction_cost_rate
             net_proceeds = proceeds - transaction_cost
@@ -279,13 +284,18 @@ def run_backtest(
                     "price": sell_price,
                     "reason": "stop",
                     "pnl": pnl,
-                    "hold_days": (datetime.strptime(date_str, "%Y%m%d") - datetime.strptime(pos.entry_date, "%Y%m%d")).days,
+                    "hold_days": (
+                        datetime.strptime(date_str, "%Y%m%d")
+                        - datetime.strptime(pos.entry_date, "%Y%m%d")
+                    ).days,
                 }
             )
             risk_state.closed_trades += 1
 
         # === 重新计算权益（强制平仓后） ===
-        market_value = sum(pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items())
+        market_value = sum(
+            pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items()
+        )
         equity = cash + market_value
 
         # === 每日调仓 ===
@@ -304,13 +314,19 @@ def run_backtest(
                 conf = float(row.get("confidence", 0.0))
                 if conf <= 0 and score <= 0:
                     continue
-                predictions.append(Prediction(symbol=sym, score=score, predicted_return=pred_return, confidence=conf))
+                predictions.append(
+                    Prediction(
+                        symbol=sym, score=score, predicted_return=pred_return, confidence=conf
+                    )
+                )
 
             # 过滤+排序
             ranked = rank_signals(predictions)
 
             # 目标仓位
-            existing_pos_dict = {sym: pos.shares * pos.avg_cost / equity for sym, pos in positions.items()}
+            existing_pos_dict = {
+                sym: pos.shares * pos.avg_cost / equity for sym, pos in positions.items()
+            }
             plans = compute_target_positions(
                 predictions=ranked,
                 file_config=file_config,
@@ -322,7 +338,7 @@ def run_backtest(
             # 计算目标持仓市值
             target_positions: dict[str, float] = {}  # symbol -> target market value
             for plan in plans:
-                if plan.action in (SignalKind.BUY, SignalKind.HOLD):
+                if plan.action in (SignalAction.BUY, SignalAction.HOLD):
                     target_positions[plan.symbol] = plan.target_weight * equity
 
             # === 调仓：平多余，卖弱，换强 ===
@@ -334,11 +350,18 @@ def run_backtest(
 
                 # 需要卖出
                 if target_shares_val < current_mv * 0.95:  # 5% 以下差异视为无需操作
-                    sell_shares = max(0, int((current_mv - target_shares_val) / _get_day_close(day_frame, sym)))
+                    sell_shares = max(
+                        0, int((current_mv - target_shares_val) / _get_day_close(day_frame, sym))
+                    )
                     if sell_shares >= 100:
                         price_row = day_frame[day_frame["symbol"] == sym]
                         if not price_row.empty:
-                            sell_price = _trade_price(float(price_row.iloc[0]["close"]), "sell", config.slippage_rate, config)
+                            sell_price = _trade_price(
+                                float(price_row.iloc[0]["close"]),
+                                "sell",
+                                config.slippage_rate,
+                                config,
+                            )
                             proceeds = sell_shares * sell_price
                             cost = proceeds * config.transaction_cost_rate
                             net = proceeds - cost
@@ -355,7 +378,10 @@ def run_backtest(
                                     "price": sell_price,
                                     "reason": "rebalance",
                                     "pnl": pnl,
-                                    "hold_days": (datetime.strptime(date_str, "%Y%m%d") - datetime.strptime(pos.entry_date, "%Y%m%d")).days,
+                                    "hold_days": (
+                                        datetime.strptime(date_str, "%Y%m%d")
+                                        - datetime.strptime(pos.entry_date, "%Y%m%d")
+                                    ).days,
                                 }
                             )
                             risk_state.closed_trades += 1
@@ -364,12 +390,23 @@ def run_backtest(
                 # 更新均价（如果加仓）
                 if target_shares_val > current_mv * 1.05:
                     buy_val = target_shares_val - current_mv
-                    if buy_val >= config.min_position_size and cash >= buy_val * (1 + config.transaction_cost_rate + config.slippage_rate):
+                    if buy_val >= config.min_position_size and cash >= buy_val * (
+                        1 + config.transaction_cost_rate + config.slippage_rate
+                    ):
                         price_row = day_frame[day_frame["symbol"] == sym]
                         if not price_row.empty:
-                            buy_price = _trade_price(float(price_row.iloc[0]["close"]), "buy", config.slippage_rate, config)
+                            buy_price = _trade_price(
+                                float(price_row.iloc[0]["close"]),
+                                "buy",
+                                config.slippage_rate,
+                                config,
+                            )
                             max_shares = _shares_with_volume_limit(
-                                min(buy_val, cash / (1 + config.transaction_cost_rate + config.slippage_rate)),
+                                min(
+                                    buy_val,
+                                    cash
+                                    / (1 + config.transaction_cost_rate + config.slippage_rate),
+                                ),
                                 buy_price,
                                 float(price_row.iloc[0]["volume"]),
                                 config,
@@ -379,7 +416,9 @@ def run_backtest(
                                 cost = buy_shares * buy_price * (1 + config.transaction_cost_rate)
                                 if cost <= cash:
                                     cash -= cost
-                                    new_cost = (pos.shares * pos.avg_cost + buy_shares * buy_price) / (pos.shares + buy_shares)
+                                    new_cost = (
+                                        pos.shares * pos.avg_cost + buy_shares * buy_price
+                                    ) / (pos.shares + buy_shares)
                                     pos.shares += buy_shares
                                     pos.avg_cost = new_cost
                                     trades_log.append(
@@ -407,7 +446,9 @@ def run_backtest(
                         price_row = day_frame[day_frame["symbol"] == plan.symbol]
                         if price_row.empty:
                             continue
-                        buy_price = _trade_price(float(price_row.iloc[0]["close"]), "buy", config.slippage_rate, config)
+                        buy_price = _trade_price(
+                            float(price_row.iloc[0]["close"]), "buy", config.slippage_rate, config
+                        )
                         max_shares = _shares_with_volume_limit(
                             target_mv,
                             buy_price,
@@ -415,7 +456,9 @@ def run_backtest(
                             config,
                         )
                         buy_shares = min(max_shares, int(target_mv / buy_price))
-                        if buy_shares < 100 or cash < buy_shares * buy_price * (1 + config.transaction_cost_rate):
+                        if buy_shares < 100 or cash < buy_shares * buy_price * (
+                            1 + config.transaction_cost_rate
+                        ):
                             continue
                         cost = buy_shares * buy_price * (1 + config.transaction_cost_rate)
                         cash -= cost
@@ -442,12 +485,17 @@ def run_backtest(
                         new_trades += 1
 
         # === 记录快照 ===
-        market_value = sum(pos.shares * _get_day_close(day_frame, pos.symbol) for pos in positions.values())
+        market_value = sum(
+            pos.shares * _get_day_close(day_frame, pos.symbol) for pos in positions.values()
+        )
         equity = cash + market_value
         peak_equity, drawdown = _update_drawdown(equity, peak_equity)
         day_return = equity / prev_equity - 1.0 if prev_equity > 0 else 0.0
 
-        long_positions = {pos.symbol: pos.shares * _get_day_close(day_frame, pos.symbol) for pos in positions.values()}
+        long_positions = {
+            pos.symbol: pos.shares * _get_day_close(day_frame, pos.symbol)
+            for pos in positions.values()
+        }
         turnover_rate = new_trades / max(len(positions) + new_trades, 1)
 
         snapshot = DailySnapshot(
@@ -476,7 +524,9 @@ def run_backtest(
     # === 最终结果 ===
     equity_df = _build_equity_curve(equity_curve)
     metrics = _compute_metrics(equity_curve, trades_log, config)
-    final_positions = {sym: {"shares": p.shares, "avg_cost": p.avg_cost} for sym, p in positions.items()}
+    final_positions = {
+        sym: {"shares": p.shares, "avg_cost": p.avg_cost} for sym, p in positions.items()
+    }
 
     # 保存报告
     output_path = Path(output_dir)
@@ -560,7 +610,7 @@ def _compute_metrics(
 
     # 基本指标
     total_return = equity_series[-1] / equity_series[0] - 1.0 if equity_series[0] > 0 else 0.0
-    max_drawdown = max((s.peak_equity - s.equity) / s.peak_equity if s.peak_equity > 0 else 0 for s in snapshots)
+    max_drawdown = max(s.max_drawdown for s in snapshots)
     annual_trading_days = 252
     n_days = len(snapshots)
     years = n_days / annual_trading_days
@@ -571,7 +621,9 @@ def _compute_metrics(
     # 夏普比率（无风险利率 3%）
     risk_free = 0.03
     excess_returns = returns - risk_free / annual_trading_days
-    sharpe = float(np.mean(excess_returns) / (np.std(excess_returns) + 1e-9) * np.sqrt(annual_trading_days))
+    sharpe = float(
+        np.mean(excess_returns) / (np.std(excess_returns) + 1e-9) * np.sqrt(annual_trading_days)
+    )
 
     # 胜率
     winning_days = int(np.sum(returns > 0))
@@ -667,6 +719,3 @@ def run_model_backtest(
         metadata_path=metadata_path,
         top_n=top_n,
     )
-
-
-

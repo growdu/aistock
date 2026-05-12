@@ -1,600 +1,474 @@
-# AI量化交易系统用户与运维文档
+# AIStock 用户手册
 
-## 1. 文档目的
+本文档面向使用 AIStock 量化交易系统的个人用户，涵盖从安装到日常使用的完整说明。
 
-本文档面向当前个人版 AI 量化交易系统，整合两类内容：
+## 1. 系统概述
 
-1. 用户文档：说明系统怎么使用
-2. 运维文档：说明系统怎么部署、运行、排查和维护
+### 1.1 定位与能力
 
-本文档适用于当前项目的单机、低频、个人交易场景。
+AIStock 是面向个人用户的 AI 辅助量化交易系统，聚焦科创板（688xxx）和创业板（300xxx）场景。
 
-## 2. 适用对象
+**核心链路：**
 
-1. 个人交易用户
-2. 策略开发者
-3. 本地部署和维护人员
-
-## 3. 系统概览
-
-当前系统目标是为个人用户提供一个轻量的量化交易工作流，覆盖以下能力：
-
-1. 行情和基础数据同步
-2. 特征与信号生成
-3. 风控过滤
-4. 模拟交易执行
-5. 回测验证
-6. 结果查看与复盘
-
-当前技术形态：
-
-1. 单机部署
-2. Python 工程
-3. 本地数据库或 PostgreSQL
-4. CLI 为主，后续可扩展轻量 Web 页面
-
-## 4. 用户文档
-
-## 4.1 使用前准备
-
-在开始前，用户需要准备：
-
-1. Python 3.10+
-2. 数据源账号，例如 TuShare Token
-3. 模拟交易账号
-4. 实盘交易账号和 API 权限
-5. `.env` 配置文件
-6. `config/settings.yaml` 或沿用示例配置
-
-建议先从模拟交易开始，不要直接启用实盘自动下单。
-
-## 4.2 目录说明
-
-用户最常接触的目录和文件如下：
-
-1. [product.md](/Users/growduduan/pythowork/aistock/docs/product.md)：产品需求
-2. [resource.md](/Users/growduduan/pythowork/aistock/docs/resource.md)：资源要求
-3. [tech.md](/Users/growduduan/pythowork/aistock/docs/tech.md)：技术选型
-4. [project_structure.md](/Users/growduduan/pythowork/aistock/docs/project_structure.md)：项目结构
-5. [config/settings.example.yaml](/Users/growduduan/pythowork/aistock/config/settings.example.yaml)：配置样例
-6. [src/aistock/app/cli.py](/Users/growduduan/pythowork/aistock/src/aistock/app/cli.py)：CLI 入口
-
-## 4.3 初始化步骤
-
-建议按以下顺序完成初始化：
-
-1. 安装依赖
-2. 复制环境变量模板
-3. 配置数据源和券商参数
-4. 初始化数据库
-5. 同步测试数据
-6. 生成测试信号
-7. 执行模拟交易
-
-## 4.4 环境配置
-
-### 4.4.1 环境变量
-
-参考 [.env.example](/Users/growduduan/pythowork/aistock/.env.example) 创建 `.env`：
-
-```env
-ENV=dev
-LOG_LEVEL=INFO
-DATABASE_URL=sqlite:///./aistock.db
-TUSHARE_TOKEN=你的token
-BROKER_API_KEY=
-BROKER_API_SECRET=
-BROKER_ACCOUNT_ID=
-ALERT_WEBHOOK=
+```
+数据同步 → 因子与特征 → 预测与信号 → 风控 → 模拟/实盘执行 → 回测与复盘
 ```
 
-说明：
-
-1. 如果暂时没有 PostgreSQL，可先使用 SQLite。
-2. 如果暂时不接实盘，可先不填写券商真实密钥。
-
-### 4.4.2 配置文件
-
-参考 [config/settings.example.yaml](/Users/growduduan/pythowork/aistock/config/settings.example.yaml)：
-
-1. 策略观察池大小
-2. 调仓频率
-3. 风控阈值
-4. 是否启用小模型
-5. 是否启用新闻处理
-6. 初始账户资金 `portfolio.initial_cash`
-
-建议复制为 `config/settings.yaml` 后再修改，并在 `.env` 中将 `CONFIG_PATH` 指向真实文件。
-
-## 4.5 常用命令
-
-当前 CLI 已提供这些基础命令：
-
-### 4.5.1 准备运行目录
-
-```bash
-aistock prepare-runtime
-```
-
-用途：
-
-1. 创建 `data/` 目录
-2. 创建 `logs/` 目录
-
-### 4.5.2 查看配置
-
-```bash
-aistock show-config
-```
-
-用途：
-
-1. 查看当前环境、数据库和关键配置
-
-### 4.5.3 健康检查
-
-```bash
-aistock health-check
-```
-
-用途：
-
-1. 检查数据库连接
-2. 检查运行目录初始化
-
-### 4.5.4 初始化数据库
-
-```bash
-aistock init-db
-```
-
-用途：
-
-1. 创建基础表
-2. 准备信号落库环境
-
-### 4.5.5 同步数据
-
-```bash
-aistock sync-data
-```
-
-用途：
-
-1. 生成原始市场数据快照
-2. 创建 `data/` 目录结构
-
-说明：
-
-1. 在未配置 `TUSHARE_TOKEN` 时会回退为占位快照。
-2. 配置了 `TUSHARE_TOKEN` 后会执行真实 TuShare 数据同步。
-3. 支持通过参数指定股票与时间区间。
-
-示例：
-
-```bash
-aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date 20240131
-```
-
-### 4.5.6 生成信号
-
-```bash
-aistock build-features
-aistock train-model
-aistock generate-signals
-```
-
-用途：
-
-1. `build-features` 构建日频特征和训练标签
-2. `train-model` 训练基线 LightGBM 模型
-3. `generate-signals` 执行候选标的打分
-4. 生成交易信号
-5. 应用基础风控
-6. 将结果写入数据库和报表文件
-
-输出位置：
-
-1. `data/reports/signals.csv`
-
-### 4.5.7 查看信号
-
-```bash
-aistock show-signals
-```
-
-用途：
-
-1. 查看当前数据库中的信号记录
-
-### 4.5.8 执行模拟交易
-
-```bash
-aistock paper-trade
-```
-
-用途：
-
-1. 使用模拟券商适配器按目标权重执行调仓
-2. 支持买入、减仓和卖出
-3. 将订单写入 `trade_order`
-4. 将当前持仓写入 `portfolio_position`
-5. 按配置计入交易成本和滑点
-6. 更新账户现金、已实现盈亏和当日交易次数
-7. 用于联调完整闭环
-
-### 4.5.9 查看账户、订单与持仓
-
-```bash
-aistock show-account
-aistock show-orders
-aistock show-positions
-```
-
-用途：
-
-1. 查看账户可用现金、已用资金、已实现盈亏、未实现盈亏和当日交易次数
-2. 查看最近模拟订单及每笔成本
-3. 查看当前持仓权重、成本、市值和最新价格
-
-### 4.5.10 运行回测
-
-```bash
-aistock run-backtest
-```
-
-用途：
-
-1. 基于已有数据运行基础回测
-2. 输出账户化回测曲线，包括现金、持仓市值、未实现盈亏、净值和回撤
-3. 默认计入交易成本和滑点，可通过 `backtest.transaction_cost_rate`、`backtest.slippage_rate` 调整
-
-## 4.6 用户推荐操作流程
-
-建议每日按以下顺序使用：
-
-1. 执行 `sync-data`
-2. 执行 `build-features`
-3. 执行 `train-model`
-4. 执行 `generate-signals`
-5. 执行 `show-signals`
-6. 人工检查信号是否合理
-7. 如需联调，执行 `paper-trade`
-8. 执行 `show-account`、`show-orders` 和 `show-positions` 检查结果
-9. 收盘后执行 `run-backtest` 或复盘脚本
-
-对于实盘用户，当前建议：
-
-1. 先人工确认信号
-2. 再决定是否通过实盘接口发单
-
-## 4.7 关键风控约束
-
-当前项目默认遵循以下个人版限制：
-
-1. 每日交易次数不超过 `5 次`
-2. 每次操作股票数量不超过 `3 支`
-3. 单股仓位不超过配置阈值
-4. 低置信度信号不建议直接执行
-
-用户必须理解：
-
-1. 当前系统不是“稳赚系统”
-2. 所有策略都必须先经过回测和模拟验证
-3. 自动交易启用前必须检查数据和风控配置
-
-## 4.8 结果查看
-
-用户可以重点查看以下输出：
-
-1. 数据快照：`data/raw/`
-2. 因子与特征：`data/features/`
-3. 模型文件：`data/models/`
-4. 信号报表：`data/reports/`
-5. 数据库信号表：`signal_record`
-
-## 4.9 常见问题
-
-### 4.9.1 为什么没有生成信号
-
-可能原因：
-
-1. 没有先执行 `sync-data`
-2. 风控把信号过滤掉了
-3. 配置阈值过严
-4. 数据源没有正确配置
-
-### 4.9.2 为什么回测结果为空
-
-可能原因：
-
-1. 原始数据文件不存在
-2. 特征列未生成
-3. 当前仍是骨架数据，没有接入真实行情
-
-### 4.9.3 为什么不建议直接实盘全自动
-
-原因：
-
-1. 当前项目还处于骨架和逐步实现阶段
-2. 数据、信号、风控和券商适配需要逐步验证
-3. 个人账户更应该优先保守部署
-
-## 5. 运维文档
-
-## 5.1 运维目标
-
-对于当前个人版项目，运维目标很简单：
-
-1. 能稳定启动
-2. 能按计划同步数据
-3. 能生成信号
-4. 能保留日志和备份
-5. 出问题时能快速定位
-
-## 5.2 部署方式
-
-推荐两种部署方式：
-
-### 5.2.1 本地工作站部署
-
-适合：
-
-1. 本人长期在同一台机器上开发和使用
-2. 每日手动启动和检查
-
-优点：
-
-1. 成本低
-2. 调试方便
-
-缺点：
-
-1. 机器休眠或断网会影响定时任务
-
-### 5.2.2 单台云主机部署
-
-适合：
-
-1. 希望定时任务长期在线
-2. 希望盘中自动运行
-
-优点：
-
-1. 稳定在线
-2. 适合定时任务
-
-缺点：
-
-1. 需要管理远程环境和安全
-
-## 5.3 安装部署流程
-
-### 5.3.1 创建虚拟环境
+**当前已完成的功能模块：**
+
+| 模块 | 能力 |
+|------|------|
+| 数据层 | Tushare 12 个接口，日线/分钟线/财务/资金流/涨跌停，增量 UPSERT 同步 |
+| 特征工程 | 81 个技术/基本面/市场因子 + 9 个预测标签 |
+| 模型训练 | LightGBM / XGBoost，时间序列切分，IC + AUC + 夏普指标 |
+| 策略引擎 | 多因子排序，equal / confidence / kelly 仓位分配 |
+| 风控引擎 | 置信度/次数/仓位/流动性/黑白名单全链路风控 |
+| 回测引擎 | 手续费 + 滑点 + 印花税 + 成交量限制 |
+| 券商适配 | SimBroker 全内存模拟交易，QMTBroker 实盘（Windows）|
+| Web 可视化 | Streamlit 看板，权益曲线/持仓/交易日志/风控指标 |
+
+### 1.2 系统约束
+
+1. 每日交易不超过 **5 次**
+2. 每次操作股票不超过 **3 支**
+3. 当前为**基线模型**，需充分回测验证后方可实盘
+
+### 1.3 技术栈
+
+| 组件 | 选型 |
+|------|------|
+| 语言 | Python 3.10+ |
+| 数据库 | SQLite（默认）/ PostgreSQL |
+| 主模型 | LightGBM / XGBoost |
+| 回测 | Backtrader |
+| 可视化 | Streamlit + Plotly |
+| 数据源 | Tushare |
+
+## 2. 安装部署
+
+### 2.1 环境要求
+
+- Python 3.10 或更高版本
+- Tushare Token（用于真实数据，可先跳过用合成数据）
+- Linux / macOS / Windows
+
+### 2.2 创建虚拟环境
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate    # Linux/macOS
+# .venv\Scripts\activate     # Windows
 ```
 
-### 5.3.2 安装项目依赖
+### 2.3 安装依赖
 
 ```bash
+pip install --upgrade pip
 pip install -e .
 ```
 
-如果需要 PostgreSQL 支持：
+可选依赖组：
 
 ```bash
-pip install -e .[postgres]
+pip install -e .[postgres]   # PostgreSQL 支持
+pip install -e .[ui]         # Streamlit 可视化
+pip install -e .[llm]       # 4B 小模型（需要 torch + transformers）
+pip install -e ".[all]"     # 全部依赖
 ```
 
-如果需要 UI：
+### 2.4 准备配置文件
 
 ```bash
-pip install -e .[ui]
+cp .env.example .env
+cp config/settings.example.yaml config/settings.yaml
 ```
 
-如果需要 4B 小模型能力：
+至少填写 `.env` 中的以下字段：
 
-```bash
-pip install -e .[llm]
+```env
+DATABASE_URL=sqlite:///./aistock.db
+CONFIG_PATH=config/settings.yaml
+TUSHARE_TOKEN=your_token_here    # 可先留空，用合成数据
 ```
 
-### 5.3.3 配置文件准备
+> **提示**：Tushare Token 需在 [tushare.pro](https://tushare.pro/register) 注册免费账号获取。
 
-1. 创建 `.env`
-2. 准备 `config/settings.yaml`
-3. 检查数据库 URL
-4. 检查数据源 Token
-5. 检查告警 Webhook
-
-### 5.3.4 初始化
+### 2.5 初始化
 
 ```bash
+aistock prepare-runtime    # 创建 data/ 和 logs/ 目录
+aistock init-db            # 初始化数据库表
+aistock health-check       # 验证环境
+```
+
+## 3. 配置指南
+
+### 3.1 .env 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `ENV` | 环境：`dev` / `prod` | `dev` |
+| `LOG_LEVEL` | 日志级别：`DEBUG` / `INFO` / `WARNING` | `INFO` |
+| `DATABASE_URL` | 数据库连接串 | `sqlite:///./aistock.db` |
+| `CONFIG_PATH` | 配置文件路径 | `config/settings.yaml` |
+| `TUSHARE_TOKEN` | Tushare API Token | 空 |
+| `TRADING_MODE` | 交易模式：`paper` / `live` | `paper` |
+| `BROKER_TYPE` | 券商类型：`sim` / `qmt` | `sim` |
+| `ALERT_WEBHOOK` | 告警 Webhook（可选）| 空 |
+
+### 3.2 config/settings.yaml
+
+#### app 区
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `app.name` | 应用名称 | `aistock` |
+| `app.data_dir` | 数据根目录 | `data` |
+| `app.logs_dir` | 日志目录 | `logs` |
+
+#### strategy 区
+
+| 字段 | 说明 | 默认值 | 推荐 |
+|------|------|--------|------|
+| `strategy.top_n` | 每次持仓标的数量 | `3` | `3` |
+| `strategy.symbols` | 默认股票池 | 见示例 | 科创板+创业板各 2-3 只 |
+
+#### risk 区
+
+| 字段 | 说明 | 默认值 | 推荐 |
+|------|------|--------|------|
+| `risk.max_daily_trades` | 每日最大交易次数 | `5` | 个人用户 3-5 |
+| `risk.max_symbols_per_trade` | 每次最多操作股票数 | `3` | `3` |
+| `risk.max_single_position_pct` | 单股最大仓位 | `0.10` | 不超过 15% |
+| `risk.max_daily_loss_pct` | 当日最大亏损止损 | `0.03` | `0.03` |
+| `risk.min_confidence_score` | 最小置信度阈值 | `0.60` | 保守用户可设 0.7 |
+
+#### portfolio 区（模拟交易）
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `portfolio.initial_cash` | 初始资金 | `1_000_000.0` |
+| `portfolio.transaction_cost_rate` | 手续费率（买卖双向）| `0.0003`（万三）|
+| `portfolio.slippage_rate` | 滑点率 | `0.0005`（万分之五）|
+| `portfolio.min_expected_excess_return` | 最小期望超额收益 | `0.001` |
+| `portfolio.sim_stamp_tax_rate` | 印花税率（仅卖出）| `0.001`（千分之一）|
+
+#### backtest 区
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `backtest.initial_cash` | 回测初始资金 | `1_000_000.0` |
+| `backtest.transaction_cost_rate` | 回测手续费率 | `0.0003` |
+| `backtest.slippage_rate` | 回测滑点率 | `0.0005` |
+
+## 4. 快速开始
+
+### 4.1 路径一：无 Tushare Token（合成数据演示）
+
+适合先体验完整流程，不拉取真实行情数据。
+
+```bash
+# 1. 安装后初始化
+aistock prepare-runtime
 aistock init-db
-aistock sync-data
-aistock generate-signals
-```
 
-## 5.4 运行方式
+# 2. 合成数据（系统自动跳过 sync-data，用内存占位数据）
+# 直接构建特征（使用内置合成数据）
+aistock build-features
 
-## 5.4.1 手动运行
-
-适合开发期：
-
-```bash
-aistock sync-data
+# 3. 生成信号（使用 fallback 排序，无真实模型）
 aistock generate-signals
 aistock show-signals
+
+# 4. 执行模拟交易
 aistock paper-trade
-aistock show-orders
+aistock show-account
+
+# 5. 运行回测
+aistock run-backtest
+
+# 6. 启动 Web 可视化
+streamlit run src/aistock/report/dashboard_app.py
+```
+
+### 4.2 路径二：有 Tushare Token（真实数据）
+
+```bash
+# 1. 在 .env 中填入 TUSHARE_TOKEN 后
+aistock sync-data                          # 同步近 2 年日线数据
+aistock sync-data --mode all               # 全量同步（含财务/资金流/分钟线）
+aistock build-features                     # 构建 81 个因子
+aistock train-model                        # 训练 LightGBM 模型
+aistock generate-signals                   # 生成交易信号
+aistock show-signals                       # 查看信号
+aistock paper-trade                        # 执行模拟交易
+aistock show-account                       # 查看账户
+aistock show-orders                        # 查看订单
+aistock show-positions                     # 查看持仓
+aistock run-backtest                       # 运行回测
+streamlit run src/aistock/report/dashboard_app.py  # Web 可视化
+```
+
+## 5. CLI 命令参考
+
+| 命令 | 作用 | 关键输出 |
+|------|------|---------|
+| `aistock prepare-runtime` | 创建 data/ 和 logs/ 目录结构 | 各目录就绪状态 |
+| `aistock show-config` | 显示当前配置 | 所有配置项当前值 |
+| `aistock health-check` | 检查数据库和目录 | `health check passed` |
+| `aistock init-db` | 初始化数据库表 | `database initialized` |
+| `aistock sync-data` | 同步日线行情（增量）| 同步行数 |
+| `aistock sync-data --mode all` | 全量同步（含财务/分钟线）| 各项同步行数 |
+| `aistock build-features` | 从原始数据构建特征 | `daily_features.parquet` |
+| `aistock train-model` | 训练 LightGBM/XGBoost | 训练指标（RMSE/IC/AUC）|
+| `aistock train-model --train-all` | 训练 1d/3d/5d 多目标 | 各目标模型路径 |
+| `aistock generate-signals` | 生成交易信号并写入 DB | BUY/SELL 信号数量 + 总权重 |
+| `aistock show-signals` | 查看当前信号 | 每条信号的权重/置信度/预测收益 |
+| `aistock paper-trade` | 执行模拟交易调仓 | 每笔成交的股数/价格/成本 |
+| `aistock show-account` | 查看账户状态 | 可用现金/已实现盈亏/总权益 |
+| `aistock show-orders` | 查看历史订单 | 每笔订单的成交价/成本/状态 |
+| `aistock show-positions` | 查看当前持仓 | 每只股票的市值/盈亏/权重 |
+| `aistock run-backtest` | 运行回测 | 收益率/回撤/夏普/胜率 |
+
+### 常用参数
+
+```bash
+# 指定股票池和时间范围
+aistock sync-data --symbols 300750.SZ,688041.SH --start-date 20240101 --end-date 20241231
+
+# 全量数据同步
+aistock sync-data --mode all --include-minute
+
+# 训练特定目标
+aistock train-model --target target_return_3d --model-type xgboost
+
+# 使用 XGBoost 模型
+aistock train-model --model-type xgboost --train-all
+```
+
+## 6. Web 可视化
+
+### 6.1 启动看板
+
+```bash
+# 在项目根目录执行
+streamlit run src/aistock/report/dashboard_app.py
+```
+
+### 6.2 远程访问配置
+
+默认仅本地访问。如需非本机访问，需绑定到所有网络接口：
+
+```bash
+streamlit run src/aistock/report/dashboard_app.py --server.address 0.0.0.0 --server.port 8501
+```
+
+然后通过 `http://<服务器IP>:8501` 访问。
+
+> **注意**：公网访问需在云服务器安全组中放行 8501 端口。
+
+### 6.3 看板功能说明
+
+| Tab | 内容 |
+|-----|------|
+| **权益曲线** | 累计收益曲线 + 回撤曲线 |
+| **持仓概览** | 当前持仓列表，含成本/市值/浮动盈亏 |
+| **交易日志** | 所有成交记录，含手续费/滑点，支持 CSV 下载 |
+| **风控指标** | 夏普比率/胜率/盈亏比/换手率 |
+
+## 7. 每日工作流
+
+### 7.1 盘前（9:00 前）
+
+```bash
+# 1. 同步最新数据
+aistock sync-data
+
+# 2. 构建特征
+aistock build-features
+
+# 3. 生成信号
+aistock generate-signals
+aistock show-signals
+```
+
+### 7.2 盘中（9:30-15:00）
+
+```bash
+# 人工确认信号后，执行模拟调仓
+aistock paper-trade
+aistock show-account
 aistock show-positions
 ```
 
-## 5.4.2 定时任务运行
+### 7.3 盘后（15:30 后）
 
-生产或准生产环境建议使用 `cron`。
+```bash
+# 运行回测并复盘
+aistock run-backtest
 
-示例：
+# 启动看板查看结果
+streamlit run src/aistock/report/dashboard_app.py
 
-```cron
-0 9 * * 1-5 cd /path/to/aistock && . .venv/bin/activate && aistock sync-data
-15 9 * * 1-5 cd /path/to/aistock && . .venv/bin/activate && aistock generate-signals
-30 15 * * 1-5 cd /path/to/aistock && . .venv/bin/activate && aistock run-backtest
-0 16 * * 1-5 cd /path/to/aistock && . .venv/bin/activate && python scripts/backup.py
+# 备份今日数据
+python scripts/backup.py
 ```
 
-说明：
+### 7.4 定时任务（cron）示例
 
-1. 具体时间要按你的交易习惯和数据源更新时间调整。
+```cron
+# 盘前 8:30 同步数据 + 生成信号
+30 8 * * 1-5 cd /path/to/aistock && .venv/bin/activate && aistock sync-data && aistock generate-signals >> logs/daily.log 2>&1
 
-## 5.5 日志管理
+# 盘后 16:00 运行回测
+0 16 * * 1-5 cd /path/to/aistock && .venv/bin/activate && aistock run-backtest >> logs/backtest.log 2>&1
 
-当前项目使用 Python logging。
+# 每日 17:00 备份
+0 17 * * 1-5 cd /path/to/aistock && .venv/bin/activate && python scripts/backup.py >> logs/backup.log 2>&1
+```
 
-建议日志分类：
+## 8. 风控说明
 
-1. 应用日志
-2. 数据同步日志
-3. 信号生成日志
-4. 交易执行日志
-5. 异常日志
+### 8.1 风控规则
 
-建议目录：
+| 规则 | 说明 |
+|------|------|
+| 置信度过滤 | `confidence < min_confidence_score` 时拒绝或降低仓位 |
+| 每日次数限制 | `daily_trade_count >= max_daily_trades` 时拒绝新单 |
+| 单股仓位上限 | 超过 `max_single_position_pct` 的信号被调整 |
+| 最小期望收益 | 预测收益 < 手续费 + 滑点 + 最小超额时跳过 |
+| 流动性限制 | 市值/成交量低于阈值时警告或拒绝 |
+| 黑白名单 | ST 股、退市股、高风险股在黑名单中自动拦截 |
 
-1. `logs/app.log`
-2. `logs/data.log`
-3. `logs/trade.log`
+### 8.2 建议阈值
 
-建议：
+- **保守用户**：`min_confidence_score = 0.70`，`max_single_position_pct = 0.10`
+- **积极用户**：`min_confidence_score = 0.55`，`max_single_position_pct = 0.15`
 
-1. 使用按天切分或按大小轮转
-2. 至少保留最近 `30 天`
+### 8.3 重要提醒
 
-## 5.6 数据与备份
+> **AIStock 不是稳赚系统**。所有策略必须先经过回测验证。实盘自动交易前请充分在模拟环境测试。
 
-必须备份的内容：
+## 9. 数据与备份
 
-1. `.env`
-2. `config/settings.yaml`
-3. 数据库文件或数据库备份
-4. `data/models/`
-5. `data/reports/`
-6. 交易日志
+### 9.1 关键数据文件
 
-推荐备份频率：
+| 文件/目录 | 说明 | 备份频率 |
+|-----------|------|---------|
+| `.env` | 密钥和数据库配置 | 每次修改 |
+| `config/settings.yaml` | 策略和风控参数 | 每次修改 |
+| `aistock.db` | SQLite 数据库（交易记录）| 每日 |
+| `data/models/` | 训练好的模型文件 | 每次训练后 |
+| `data/reports/` | 信号和回测报表 | 每日 |
+| `logs/` | 应用日志 | 每周归档 |
 
-1. 配置文件：每次修改后
-2. 数据库：每日一次
-3. 模型文件：每次训练后
-4. 报表和交易日志：每日归档
+### 9.2 备份脚本
 
-推荐备份目标：
+```bash
+# 手动备份
+python scripts/backup.py
 
-1. 外置硬盘
-2. NAS
-3. 对象存储
+# 备份内容：数据库 + 模型 + 报表 + 配置
+```
 
-## 5.7 安全要求
+## 10. 常见问题
 
-运维时必须遵守：
+### Q1: sync-data 提示 "tushare token not configured"
 
-1. 不要把 `.env` 提交到 Git
-2. 不要在代码里写死券商密钥
-3. 不要在公网开放不必要端口
-4. 不要在未经验证前启用真实自动下单
-5. 保留所有真实下单日志
+**原因**：`.env` 中 `TUSHARE_TOKEN` 为空。
 
-如果部署在云主机：
+**解决**：
+1. 在 [tushare.pro](https://tushare.pro/register) 注册并获取 Token
+2. 填入 `.env`：`TUSHARE_TOKEN=your_token`
+3. 重新执行 `aistock sync-data`
 
-1. 仅开放 SSH 和必要端口
-2. 使用强密码或 SSH Key
-3. 定期更新系统安全补丁
+---
 
-## 5.8 故障排查
+### Q2: generate-signals 提示 "trained model artifacts missing, using fallback ranking"
 
-### 5.8.1 命令无法执行
+**原因**：没有训练好的模型文件（`lightgbm_daily.txt` / `.json`）。
 
-检查：
+**解决**：
+```bash
+aistock build-features      # 先生成特征
+aistock train-model         # 训练模型
+aistock generate-signals    # 再生成信号
+```
 
-1. 虚拟环境是否激活
-2. 是否执行了 `pip install -e .`
-3. Python 版本是否符合要求
+---
 
-### 5.8.2 数据同步失败
+### Q3: paper-trade 没有生成任何订单
 
-检查：
+**检查步骤**：
+```bash
+aistock show-signals        # 1. 确认有 BUY/SELL 信号
+aistock show-account        # 2. 确认账户有可用现金
+```
 
-1. `TUSHARE_TOKEN` 是否正确
-2. 网络是否正常
-3. 数据源是否限流
-4. 输出目录是否可写
+可能原因：
+- 没有 BUY 信号（信号被风控过滤）
+- 可用现金不足（需卖出部分持仓释放资金）
+- 最小期望收益门槛过高（预测收益被 `min_expected_excess_return` 拦截）
 
-### 5.8.3 数据库初始化失败
+---
 
-检查：
+### Q4: run-backtest 报错 "market_snapshot.parquet not found"
 
-1. `DATABASE_URL` 是否正确
-2. SQLite 文件目录是否可写
-3. PostgreSQL 是否启动
+**原因**：`run-backtest` 的 fallback 路径需要 `data/raw/market_snapshot.parquet`，但该文件不存在。
 
-### 5.8.4 没有信号输出
+**解决**：先执行完整数据流程：
+```bash
+aistock sync-data
+aistock build-features
+aistock run-backtest
+```
 
-检查：
+---
 
-1. 数据文件是否存在
-2. 配置阈值是否过严
-3. 风控是否全部拒绝
+### Q5: Streamlit 看板无法启动
 
-### 5.8.5 模拟交易没有订单
+**检查**：
+```bash
+# 1. 确认安装了 UI 依赖
+pip install -e .[ui]
 
-检查：
+# 2. 在项目根目录执行
+cd /path/to/aistock
+streamlit run src/aistock/report/dashboard_app.py
+```
 
-1. 是否先执行了 `generate-signals`
-2. 是否存在 `BUY` 信号
-3. 数据库中是否有信号记录
+---
 
-## 5.9 运维检查清单
+### Q6: 模拟交易和回测结果差异大
 
-每日检查：
+**正常原因**：
+- 回测使用历史数据，模拟交易使用实时价格
+- 滑点和成交价的估算方式不同
+- 回测不考虑流动性冲击，模拟交易更保守
 
-1. 数据同步是否成功
-2. 当日信号是否生成
-3. 模拟或实盘订单是否符合预期
-4. 日志中是否有异常
-5. 备份任务是否成功
+**排查方向**：
+1. 确认两者使用相同的 `transaction_cost_rate` 和 `slippage_rate`
+2. 检查回测是否开启了风控引擎
+3. 对比同一时间段的回测和模拟账户权益曲线
 
-每周检查：
+---
 
-1. 回测结果是否偏移
-2. 风控阈值是否仍合理
-3. 磁盘空间是否足够
-4. 历史日志是否需要归档
+## 11. 安全建议
 
-每月检查：
+1. **不要将 `.env` 提交到 Git** — 已在 `.gitignore` 中忽略
+2. **不要在代码中硬编码密钥** — 所有密钥通过环境变量或配置文件管理
+3. **实盘前必须关闭 `TRADING_MODE=papre`** — 默认为 `paper`，切换到 `live` 前需二次确认
+4. **保留完整交易日志** — 所有订单记录保存在数据库和 `logs/trade.log` 中
+5. **云服务器安全组** — 仅开放 SSH 和必要端口，不将 Streamlit 端口暴露到公网
 
-1. 数据库文件大小
-2. 模型文件清理情况
-3. 配置与密钥是否需要轮换
-4. 系统依赖是否需要升级
+## 12. 文档索引
 
-## 5.10 当前阶段限制说明
-
-当前项目仍处于骨架实现阶段，因此运维上必须明确：
-
-1. 数据同步目前还是占位实现，不是完整生产逻辑
-2. 模型预测目前还是基础骨架，不是最终策略收益模型
-3. 模拟交易适配器目前只用于联调
-4. 实盘券商适配器尚未落地，不应直接视为可生产使用
-
-## 6. 建议的下一步文档
-
-在本文件基础上，后续建议补充：
-
-1. `docs/deployment.md`
-   详细写部署命令、系统服务和定时任务
-2. `runbook.md`
-   详细写异常处理和应急步骤
-3. `api.md`
-   详细写 CLI 和后续 API 接口说明
+| 文档 | 内容 |
+|------|------|
+| `README.md` | 项目总览、快速开始 |
+| `docs/product.md` | 产品需求 |
+| `docs/tech.md` | 技术选型说明 |
+| `docs/implementation_plan.md` | 实施计划和各阶段状态 |
+| `docs/deployment.md` | 部署详细步骤 |
+| `docs/DEVELOP.md` | 开发者指南 |
+| `CHANGELOG.md` | 版本变更记录 |

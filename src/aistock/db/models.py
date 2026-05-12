@@ -16,7 +16,9 @@ class SecurityMaster(Base):
     exchange: Mapped[str] = mapped_column(String(8))
     board: Mapped[str] = mapped_column(String(16))
     name: Mapped[str] = mapped_column(String(64), default="")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class TradeCalendar(Base):
@@ -26,7 +28,9 @@ class TradeCalendar(Base):
     cal_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     is_open: Mapped[str] = mapped_column(String(1))
     pretrade_date: Mapped[str] = mapped_column(String(8), default="")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class MarketBar1D(Base):
@@ -41,7 +45,9 @@ class MarketBar1D(Base):
     volume: Mapped[float] = mapped_column(Float)
     amount: Mapped[float] = mapped_column(Float)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class DailyBasic1D(Base):
@@ -57,7 +63,9 @@ class DailyBasic1D(Base):
     circ_mv: Mapped[float | None] = mapped_column(Float, nullable=True)
     turnrate: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class SignalRecord(Base):
@@ -92,7 +100,9 @@ class TradeOrder(Base):
     broker: Mapped[str] = mapped_column(String(32), default="paper")
     note: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class PortfolioPosition(Base):
@@ -108,7 +118,9 @@ class PortfolioPosition(Base):
     status: Mapped[str] = mapped_column(String(16), default="OPEN")
     source: Mapped[str] = mapped_column(String(32), default="paper")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class AccountState(Base):
@@ -123,7 +135,9 @@ class AccountState(Base):
     unrealized_pnl: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
     daily_trade_count: Mapped[int] = mapped_column(Integer, default=0)
     last_trade_date: Mapped[str] = mapped_column(String(8), default="")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 # =============================================================================
@@ -147,7 +161,9 @@ class StockBasic(Base):
     delist_date: Mapped[str] = mapped_column(String(8), default="")
     is_hs: Mapped[str] = mapped_column(String(1), default="N")
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class FinancialIndicator(Base):
@@ -183,7 +199,9 @@ class FinancialIndicator(Base):
     pb_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
     ps_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class MarketBar1M(Base):
@@ -202,7 +220,9 @@ class MarketBar1M(Base):
     volume: Mapped[float] = mapped_column(Float)
     amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class IndexDaily(Base):
@@ -219,7 +239,9 @@ class IndexDaily(Base):
     volume: Mapped[float | None] = mapped_column(Float, nullable=True)
     amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class MoneyFlow(Base):
@@ -238,7 +260,9 @@ class MoneyFlow(Base):
     sell_lg_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     net_mf_amount: Mapped[float | None] = mapped_column(Float, nullable=True)  # 净流入额
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class SuspendD(Base):
@@ -252,7 +276,9 @@ class SuspendD(Base):
     suspend_type: Mapped[str] = mapped_column(String(16))
     suspend_reason: Mapped[str] = mapped_column(String(255), default="")
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class LimitListD(Base):
@@ -267,7 +293,9 @@ class LimitListD(Base):
     open_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     close_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class DisclosureDate(Base):
@@ -280,7 +308,9 @@ class DisclosureDate(Base):
     ann_date: Mapped[str] = mapped_column(String(8), primary_key=True)
     report_date: Mapped[str] = mapped_column(String(8))
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class BlockTrade(Base):
@@ -297,4 +327,6 @@ class BlockTrade(Base):
     buyer: Mapped[str] = mapped_column(String(128), default="")
     seller: Mapped[str] = mapped_column(String(128), default="")
     source: Mapped[str] = mapped_column(String(32), default="tushare")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

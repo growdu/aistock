@@ -13,10 +13,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Iterable
-
-import numpy as np
-import pandas as pd
 
 from aistock.common.types import Prediction, SignalAction, TradeSignal
 from aistock.config.settings import FileConfig
@@ -125,7 +121,9 @@ class PositionPlan:
     take_profit_pct: float | None = None  # 止盈线
 
 
-def _compute_kelly_fraction(predicted_return: float, confidence: float, max_fraction: float = 0.25) -> float:
+def _compute_kelly_fraction(
+    predicted_return: float, confidence: float, max_fraction: float = 0.25
+) -> float:
     """
     Kelly Criterion 简化版：
     f = p * b - q / b
@@ -185,7 +183,9 @@ def compute_target_positions(
     elif position_method == "kelly":
         weights = {}
         for p in selected:
-            kelly_f = _compute_kelly_fraction(p.predicted_return, p.confidence, max_fraction=max_single)
+            kelly_f = _compute_kelly_fraction(
+                p.predicted_return, p.confidence, max_fraction=max_single
+            )
             weights[p.symbol] = kelly_f
         # 归一化使总权重不超过 max_total_weight
         total_w = sum(weights.values())
@@ -287,7 +287,8 @@ def generate_signals(
 
     logger.info(
         "generated %d signals from %d candidates: %s",
-        len(signals), len(predictions),
+        len(signals),
+        len(predictions),
         [(s.symbol, s.action.value, f"{s.target_weight:.3f}") for s in signals],
     )
     return signals
@@ -305,7 +306,9 @@ class PositionTracker:
     用于盘中监控持仓是否触发止损/止盈/最大持仓期。
     """
 
-    positions: dict[str, dict] = field(default_factory=dict)  # symbol -> {entry_price, entry_date, stop_loss, take_profit}
+    positions: dict[str, dict] = field(
+        default_factory=dict
+    )  # symbol -> {entry_price, entry_date, stop_loss, take_profit}
 
     def open_position(
         self,

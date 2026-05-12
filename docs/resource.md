@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本文档基于 [product.md](/Users/growduduan/pythowork/aistock/docs/product.md)、[high_level_design.md](/Users/growduduan/pythowork/aistock/docs/high_level_design.md) 和 [detailed_design.md](/Users/growduduan/pythowork/aistock/docs/detailed_design.md)，重新规划面向`个人使用`的资源方案。
+本文档基于 [product.md](./product.md)、[high_level_design.md](./high_level_design.md) 和 [detailed_design.md](./detailed_design.md)，重新规划面向`个人使用`的资源方案。
 
 本版资源设计以低频、小规模、低成本为原则，适用于：
 

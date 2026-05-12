@@ -162,14 +162,14 @@ class RiskEngine:
             checks.add(
                 "min_market_cap",
                 RiskDecision.REJECT,
-                f"market_cap {market_cap/1e6:.1f}M < {MIN_MARKET_CAP/1e6:.0f}M",
+                f"market_cap {market_cap / 1e6:.1f}M < {MIN_MARKET_CAP / 1e6:.0f}M",
             )
 
         if avg_volume_20d is not None and avg_volume_20d < MIN_DAILY_VOLUME:
             checks.add(
                 "min_daily_volume",
                 RiskDecision.REJECT,
-                f"avg_volume_20d {avg_volume_20d/1e6:.1f}M < {MIN_DAILY_VOLUME/1e6:.0f}M shares",
+                f"avg_volume_20d {avg_volume_20d / 1e6:.1f}M < {MIN_DAILY_VOLUME / 1e6:.0f}M shares",
             )
 
         if price is not None and price < MIN_PRICE:
@@ -183,7 +183,9 @@ class RiskEngine:
 
     # ---- 黑白名单 ----
 
-    def _check_blacklist(self, signal: TradeSignal, blacklist: set[str] | None = None) -> RiskCheckList:
+    def _check_blacklist(
+        self, signal: TradeSignal, blacklist: set[str] | None = None
+    ) -> RiskCheckList:
         checks = RiskCheckList()
         if blacklist and signal.symbol in blacklist:
             checks.add("blacklist", RiskDecision.REJECT, f"symbol {signal.symbol} in blacklist")
@@ -248,7 +250,9 @@ class RiskEngine:
 
         # 5. 流动性
         checks.checks.extend(
-            self._check_liquidity(signal, market_cap=market_cap, avg_volume_20d=avg_volume_20d, price=current_price).checks
+            self._check_liquidity(
+                signal, market_cap=market_cap, avg_volume_20d=avg_volume_20d, price=current_price
+            ).checks
         )
 
         # 6. 黑白名单
@@ -273,7 +277,13 @@ class RiskEngine:
         elif worst == RiskDecision.ADJUST:
             reason_parts = [msg for _, d, msg in checks.checks if d == RiskDecision.ADJUST]
             reason = "; ".join(reason_parts)
-            logger.info("signal adjusted for %s: %s (%.4f -> %.4f)", signal.symbol, reason, signal.target_weight, adjusted_w)
+            logger.info(
+                "signal adjusted for %s: %s (%.4f -> %.4f)",
+                signal.symbol,
+                reason,
+                signal.target_weight,
+                adjusted_w,
+            )
             return RiskResult(
                 symbol=signal.symbol,
                 decision=RiskDecision.ADJUST,

@@ -118,7 +118,7 @@ def compute_summary_metrics(curve: pd.DataFrame | None) -> dict:
     years = n_days / 252
     cagr = (1 + total_return) ** (1 / years) - 1.0 if years > 0 else 0.0
     returns = equity.pct_change().dropna()
-    sharpe = returns.mean() / returns.std() * (252 ** 0.5) if returns.std() > 0 else 0.0
+    sharpe = returns.mean() / returns.std() * (252**0.5) if returns.std() > 0 else 0.0
     return {
         "初始资金": f"{initial:,.0f}",
         "最终权益": f"{final:,.0f}",
@@ -201,7 +201,9 @@ with tab1:
         if equity_col:
             # 累计收益
             curve_disp = curve.copy()
-            curve_disp["累计收益"] = (curve_disp[equity_col] / curve_disp[equity_col].iloc[0] - 1) * 100
+            curve_disp["累计收益"] = (
+                curve_disp[equity_col] / curve_disp[equity_col].iloc[0] - 1
+            ) * 100
 
             tab1.line_chart(
                 curve_disp.set_index("trade_date")[["累计收益"]],
@@ -277,11 +279,26 @@ with tab3:
     if log is not None and not log.empty:
         if "submitted_at" in log.columns:
             log = log.sort_values("submitted_at", ascending=False)
-        tab3.dataframe(log[[
-            c for c in ["submitted_at", "symbol", "side", "filled_price",
-                        "filled_weight", "filled_notional", "transaction_cost", "total_cost"]
-            if c in log.columns
-        ]], use_container_width=True, hide_index=True)
+        tab3.dataframe(
+            log[
+                [
+                    c
+                    for c in [
+                        "submitted_at",
+                        "symbol",
+                        "side",
+                        "filled_price",
+                        "filled_weight",
+                        "filled_notional",
+                        "transaction_cost",
+                        "total_cost",
+                    ]
+                    if c in log.columns
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
 
         # 下载按钮
         csv = log.to_csv(index=False)
@@ -328,10 +345,14 @@ with tab4:
     else:
         # 尝试从 equity_curve 计算风控指标
         if curve is not None and not curve.empty:
-            returns = curve["day_return"] if "day_return" in curve.columns else curve["equity"].pct_change()
+            returns = (
+                curve["day_return"]
+                if "day_return" in curve.columns
+                else curve["equity"].pct_change()
+            )
             winning = (returns > 0).sum()
             total = len(returns)
-            st.metric("胜率", f"{winning/total:.2%}" if total > 0 else "N/A")
+            st.metric("胜率", f"{winning / total:.2%}" if total > 0 else "N/A")
             st.metric("交易日数", total)
         else:
             st.info("运行回测后显示风控指标。")
@@ -349,7 +370,20 @@ if signals is not None and not signals.empty:
     if "trade_date" in signals.columns:
         signals = signals.sort_values("trade_date", ascending=False)
     st.dataframe(
-        signals[[c for c in ["trade_date", "symbol", "action", "target_weight", "predicted_return", "reason"] if c in signals.columns]].head(20),
+        signals[
+            [
+                c
+                for c in [
+                    "trade_date",
+                    "symbol",
+                    "action",
+                    "target_weight",
+                    "predicted_return",
+                    "reason",
+                ]
+                if c in signals.columns
+            ]
+        ].head(20),
         hide_index=True,
         use_container_width=True,
     )
@@ -361,8 +395,4 @@ else:
 # 页脚
 # =============================================================================
 
-st.markdown(
-    "---"
-    "\n📊 AIStock 量化交易系统  |  "
-    "数据驱动  |  模型预测  |  风控护航"
-)
+st.markdown("---\n📊 AIStock 量化交易系统  |  数据驱动  |  模型预测  |  风控护航")

@@ -114,7 +114,9 @@ def load_settings() -> tuple[RuntimeSettings, FileConfig]:
     config_path = runtime.config_path.strip()
     if not config_path:
         default_path = Path("config/settings.yaml")
-        config_path = str(default_path if default_path.exists() else Path("config/settings.example.yaml"))
+        config_path = str(
+            default_path if default_path.exists() else Path("config/settings.example.yaml")
+        )
 
     file_config = load_file_config(config_path)
     return runtime, file_config

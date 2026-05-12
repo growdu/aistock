@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
@@ -59,7 +59,9 @@ def predict_feature_frame(
 
     scoring_frame["predicted_return"] = raw_scores
     scoring_frame["score"] = normalized_scores
-    scoring_frame["confidence"] = [min(1.0, max(0.0, 0.5 + score / 2)) for score in normalized_scores]
+    scoring_frame["confidence"] = [
+        min(1.0, max(0.0, 0.5 + score / 2)) for score in normalized_scores
+    ]
     return scoring_frame
 
 

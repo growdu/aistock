@@ -71,7 +71,7 @@ aistock/
 └── pyproject.toml
 ```
 
-核心源码目录在 [src/aistock](/Users/growduduan/pythowork/aistock/src/aistock)：
+核心源码目录在 `src/aistock/`：
 
 1. `app`：CLI 和应用入口
 2. `config`：配置加载
@@ -243,23 +243,23 @@ python scripts/backup.py
 
 建议按下面顺序阅读：
 
-1. [README.md](/Users/growduduan/pythowork/aistock/README.md)
+1. [README.md](./README.md)
    先了解项目定位、状态和快速开始
-2. [product.md](/Users/growduduan/pythowork/aistock/docs/product.md)
+2. [docs/user.md](./docs/user.md)
+   **用户手册**：安装/配置/CLI 命令/可视化/每日工作流
+3. [docs/product.md](./docs/product.md)
    查看产品目标和需求范围
-3. [tech.md](/Users/growduduan/pythowork/aistock/docs/tech.md)
+4. [docs/tech.md](./docs/tech.md)
    查看技术架构选型
-4. [project_structure.md](/Users/growduduan/pythowork/aistock/docs/project_structure.md)
+5. [docs/project_structure.md](./docs/project_structure.md)
    查看目录结构和模块边界
-5. [implementation_plan.md](/Users/growduduan/pythowork/aistock/docs/implementation_plan.md)
+6. [docs/implementation_plan.md](./docs/implementation_plan.md)
    查看实施阶段、任务拆分和验收标准
-6. [depend.md](/Users/growduduan/pythowork/aistock/docs/depend.md)
+7. [docs/depend.md](./docs/depend.md)
    查看依赖说明和安装指引
-7. [user.md](/Users/growduduan/pythowork/aistock/docs/user.md)
-   查看使用说明和运维说明
-8. [deployment.md](/Users/growduduan/pythowork/aistock/docs/deployment.md)
+8. [docs/deployment.md](./docs/deployment.md)
    查看部署步骤和定时任务
-9. [docs/README.md](/Users/growduduan/pythowork/aistock/docs/README.md)
+9. [docs/README.md](./docs/README.md)
    查看设计文档索引
 
 ## 重要限制
@@ -281,4 +281,4 @@ python scripts/backup.py
 
 ## 文档索引
 
-完整文档目录见 [docs/README.md](/Users/growduduan/pythowork/aistock/docs/README.md)。
+完整文档目录见 [docs/README.md](./docs/README.md)。

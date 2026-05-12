@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本文档基于 [product.md](/Users/growduduan/pythowork/aistock/docs/product.md)、[high_level_design.md](/Users/growduduan/pythowork/aistock/docs/high_level_design.md)、[detailed_design.md](/Users/growduduan/pythowork/aistock/docs/detailed_design.md) 和 [resource.md](/Users/growduduan/pythowork/aistock/docs/resource.md)，给出当前需求下的技术架构选型结论。
+本文档基于 [product.md](./product.md)、[high_level_design.md](./high_level_design.md)、[detailed_design.md](./detailed_design.md) 和 [resource.md](./resource.md)，给出当前需求下的技术架构选型结论。
 
 本文档的目标不是列出所有可选技术，而是结合当前约束，明确“现在应该用什么”。
 

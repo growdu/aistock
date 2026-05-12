@@ -9,4 +9,5 @@ from aistock.report.dashboard import write_backtest_curve, write_signal_report, 
 __all__ = [
     "write_backtest_curve",
     "write_signal_report",
+    "write_trade_log",
 ]

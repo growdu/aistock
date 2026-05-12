@@ -18,11 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
-
 
 # =============================================================================
 # 工具函数
@@ -76,7 +73,9 @@ def add_tech_return_features(frame: pd.DataFrame) -> pd.DataFrame:
 
     # 收益率分位数（相对自身历史）
     def _rank_pct(x: pd.Series, w: int = 20) -> pd.Series:
-        return x.rolling(w, min_periods=1).apply(lambda s: (s < s.iloc[-1]).sum() / len(s) if len(s) > 1 else 0.5, raw=False)
+        return x.rolling(w, min_periods=1).apply(
+            lambda s: (s < s.iloc[-1]).sum() / len(s) if len(s) > 1 else 0.5, raw=False
+        )
 
     frame["return_5_rank_pct"] = g["return_5"].transform(lambda x: _rank_pct(x, 20))
 
@@ -99,13 +98,17 @@ def add_tech_moving_average_features(frame: pd.DataFrame) -> pd.DataFrame:
         ma_cols[w] = col
 
     # 均线多头排列能量（短期均线 > 长期均线的程度）
-    frame["ma_short_vs_long"] = (frame["ma_5"] / frame["ma_20"] - 1.0) + (frame["ma_10"] / frame["ma_60"] - 1.0)
+    frame["ma_short_vs_long"] = (frame["ma_5"] / frame["ma_20"] - 1.0) + (
+        frame["ma_10"] / frame["ma_60"] - 1.0
+    )
 
     # EMA（指数移动平均）
     frame["ema_12"] = close.transform(lambda x: x.ewm(span=12, min_periods=1, adjust=False).mean())
     frame["ema_26"] = close.transform(lambda x: x.ewm(span=26, min_periods=1, adjust=False).mean())
     frame["macd"] = frame["ema_12"] - frame["ema_26"]
-    frame["macd_signal"] = frame["macd"].transform(lambda x: x.ewm(span=9, min_periods=1, adjust=False).mean())
+    frame["macd_signal"] = frame["macd"].transform(
+        lambda x: x.ewm(span=9, min_periods=1, adjust=False).mean()
+    )
     frame["macd_hist"] = frame["macd"] - frame["macd_signal"]
 
     # EMA 金叉死叉能量
@@ -138,12 +141,22 @@ def add_tech_volatility_features(frame: pd.DataFrame) -> pd.DataFrame:
 
     # Bollinger Bands
     for w in [20]:
-        ma = frame["close"].groupby(frame["ts_code"]).transform(lambda x: x.rolling(w, min_periods=1).mean())
-        std = frame["close"].groupby(frame["ts_code"]).transform(lambda x: x.rolling(w, min_periods=1).std())
+        ma = (
+            frame["close"]
+            .groupby(frame["ts_code"])
+            .transform(lambda x: x.rolling(w, min_periods=1).mean())
+        )
+        std = (
+            frame["close"]
+            .groupby(frame["ts_code"])
+            .transform(lambda x: x.rolling(w, min_periods=1).std())
+        )
         frame[f"bb_upper_{w}"] = ma + 2 * std
         frame[f"bb_lower_{w}"] = ma - 2 * std
         frame[f"bb_width_{w}"] = (frame[f"bb_upper_{w}"] - frame[f"bb_lower_{w}"]) / ma
-        frame[f"bb_position_{w}"] = (frame["close"] - frame[f"bb_lower_{w}"]) / (frame[f"bb_upper_{w}"] - frame[f"bb_lower_{w}"])
+        frame[f"bb_position_{w}"] = (frame["close"] - frame[f"bb_lower_{w}"]) / (
+            frame[f"bb_upper_{w}"] - frame[f"bb_lower_{w}"]
+        )
 
     return frame
 
@@ -161,7 +174,7 @@ def add_tech_volume_features(frame: pd.DataFrame) -> pd.DataFrame:
 
     # 量价相关性：逐股滚动计算 corr
     frame["price_volume_corr"] = np.nan
-    for tc, grp in frame.groupby("ts_code"):
+    for _tc, grp in frame.groupby("ts_code"):
         if len(grp) >= 5:
             corr_vals = grp["close"].rolling(20, min_periods=5).corr(grp["volume"])
             frame.loc[grp.index, "price_volume_corr"] = corr_vals.values
@@ -204,10 +217,12 @@ def add_tech_momentum_oscillators(frame: pd.DataFrame) -> pd.DataFrame:
     # CCI: 先逐股计算，再对齐回 frame
     tp = (frame["high"] + frame["low"] + frame["close"]) / 3.0
     cci_vals = np.nan * np.zeros(len(frame))
-    for tc, grp in frame.groupby("ts_code"):
+    for _tc, grp in frame.groupby("ts_code"):
         tp_grp = tp.loc[grp.index]
         sma = tp_grp.rolling(20, min_periods=1).mean()
-        mad = tp_grp.rolling(20, min_periods=1).apply(lambda s: (s - s.mean()).abs().mean(), raw=False)
+        mad = tp_grp.rolling(20, min_periods=1).apply(
+            lambda s: (s - s.mean()).abs().mean(), raw=False
+        )
         cci_vals[grp.index] = (tp_grp - sma) / (0.015 * mad + 1e-9)
     frame["cci_20"] = cci_vals
 
@@ -252,12 +267,22 @@ def add_fundamental_features(
         )
         fund_cols = [
             "ts_code",
-            "roe", "roe_avg", "roa", "roa2",
-            "gross_margin", "net_margin",
-            "revenue_growth", "profit_growth",
-            "debt_to_assets", "current_ratio", "quick_ratio",
-            "eps", "bps",
-            "pe_ttm", "pb_ratio", "ps_ratio",
+            "roe",
+            "roe_avg",
+            "roa",
+            "roa2",
+            "gross_margin",
+            "net_margin",
+            "revenue_growth",
+            "profit_growth",
+            "debt_to_assets",
+            "current_ratio",
+            "quick_ratio",
+            "eps",
+            "bps",
+            "pe_ttm",
+            "pb_ratio",
+            "ps_ratio",
         ]
         existing = [c for c in fund_cols if c in fin_latest.columns]
         frame = frame.merge(fin_latest[existing], on="ts_code", how="left")
@@ -265,11 +290,17 @@ def add_fundamental_features(
     # 估值分位（相对历史）
     if "pe_ttm" in frame.columns:
         frame["pe_ttm_zscore"] = frame.groupby("ts_code")["pe_ttm"].transform(
-            lambda x: (x - x.rolling(250, min_periods=30).mean()) / (x.rolling(250, min_periods=30).std() + 1e-9)
+            lambda x: (
+                (x - x.rolling(250, min_periods=30).mean())
+                / (x.rolling(250, min_periods=30).std() + 1e-9)
+            )
         )
     if "pb_ratio" in frame.columns:
         frame["pb_zscore"] = frame.groupby("ts_code")["pb_ratio"].transform(
-            lambda x: (x - x.rolling(250, min_periods=30).mean()) / (x.rolling(250, min_periods=30).std() + 1e-9)
+            lambda x: (
+                (x - x.rolling(250, min_periods=30).mean())
+                / (x.rolling(250, min_periods=30).std() + 1e-9)
+            )
         )
 
     # 盈利能力派生
@@ -315,7 +346,9 @@ def add_market_beta_features(
     )
     var = frame["bm_return"].rolling(20, min_periods=10).var()
     frame["beta_20d"] = cov / (var + 1e-9)
-    frame["beta_20d"] = frame.groupby("ts_code")["beta_20d"].transform(lambda x: x.fillna(1.0).clip(0.2, 3.0))
+    frame["beta_20d"] = frame.groupby("ts_code")["beta_20d"].transform(
+        lambda x: x.fillna(1.0).clip(0.2, 3.0)
+    )
 
     # Alpha（个股收益 - Beta * 市场收益）
     frame["alpha_20d"] = frame["return_1"] - frame["beta_20d"] * frame["bm_return"]
@@ -346,7 +379,11 @@ def add_moneyflow_features(
         .groupby("ts_code", as_index=False)
         .first()
     )
-    mf_cols = [c for c in ["ts_code", "buy_sm_amount", "sell_sm_amount", "net_mf_amount"] if c in mf_latest.columns]
+    mf_cols = [
+        c
+        for c in ["ts_code", "buy_sm_amount", "sell_sm_amount", "net_mf_amount"]
+        if c in mf_latest.columns
+    ]
     frame = frame.merge(mf_latest[mf_cols], on="ts_code", how="left")
 
     # 净流入比例（相对市值）
@@ -388,7 +425,9 @@ def add_label_features(
     for n in forward_days:
         forward_return = close_series.shift(-n) / frame["close"] - 1.0
         frame[f"target_return_{n}d"] = forward_return
-        frame[f"target_direction_{n}d"] = (forward_return > 0).astype("int8") * 2 - 1  # +1 涨，-1 跌
+        frame[f"target_direction_{n}d"] = (forward_return > 0).astype(
+            "int8"
+        ) * 2 - 1  # +1 涨，-1 跌
         frame[f"target_up_{n}d"] = (forward_return > 0).astype("int8")  # 1 涨，0 跌
 
     return frame

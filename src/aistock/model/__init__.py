@@ -1,7 +1,14 @@
 """Model training and inference."""
 
 from aistock.model.predict import predict_from_model, score_candidates
-from aistock.model.train import TimeSplit, TrainMetrics, TrainResult, train_all_targets, train_model, time_split
+from aistock.model.train import (
+    TimeSplit,
+    TrainMetrics,
+    TrainResult,
+    time_split,
+    train_all_targets,
+    train_model,
+)
 
 __all__ = [
     "TimeSplit",

@@ -17,8 +17,8 @@
 
 这些依赖已经在项目配置中有对应关系：
 
-1. `typer` 已在 [pyproject.toml](/Users/growduduan/pythowork/aistock/pyproject.toml) 的主依赖中声明。
-2. `PyYAML` 已在 [pyproject.toml](/Users/growduduan/pythowork/aistock/pyproject.toml) 的主依赖中声明。
+1. `typer` 已在 [pyproject.toml](../pyproject.toml) 的主依赖中声明。
+2. `PyYAML` 已在 [pyproject.toml](../pyproject.toml) 的主依赖中声明。
 
 这意味着问题不是项目漏声明，而是当时本地运行环境尚未执行依赖安装。
 

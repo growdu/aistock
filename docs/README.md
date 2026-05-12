@@ -13,47 +13,47 @@
 
 ### 2.1 项目入口
 
-1. [README.md](/Users/growduduan/pythowork/aistock/README.md)
+1. [README.md](../README.md)
    项目总览、快速开始、**当前所有 P1–P6 阶段均已完成** ✅
 
 ### 2.2 需求与规划
 
-1. [product.md](/Users/growduduan/pythowork/aistock/docs/product.md)
+1. [product.md](./product.md)
    产品需求文档
-2. [resource.md](/Users/growduduan/pythowork/aistock/docs/resource.md)
+2. [resource.md](./resource.md)
    个人版资源规划
-3. [implementation_plan.md](/Users/growduduan/pythowork/aistock/docs/implementation_plan.md)
+3. [implementation_plan.md](./implementation_plan.md)
    **已更新**：所有 P0–P6 阶段完成，MVP 达成
 
 ### 2.3 架构与工程
 
-1. [tech.md](/Users/growduduan/pythowork/aistock/docs/tech.md)
+1. [tech.md](./tech.md)
    技术架构选型
-2. [project_structure.md](/Users/growduduan/pythowork/aistock/docs/project_structure.md)
+2. [project_structure.md](./project_structure.md)
    项目结构设计
-3. [depend.md](/Users/growduduan/pythowork/aistock/docs/depend.md)
+3. [depend.md](./depend.md)
    依赖说明与安装指引
 
 ### 2.4 使用与部署
 
-1. [user.md](/Users/growduduan/pythowork/aistock/docs/user.md)
-   用户使用与运维文档
-2. [deployment.md](/Users/growduduan/pythowork/aistock/docs/deployment.md)
+1. [user.md](./user.md)
+   **用户手册**：安装/配置/CLI 参考/可视化/每日工作流
+2. [deployment.md](./deployment.md)
    部署文档
 
 ## 3. 设计文档
 
-1. [high_level_design.md](/Users/growduduan/pythowork/aistock/docs/high_level_design.md)
+1. [high_level_design.md](./high_level_design.md)
    概要设计
-2. [detailed_design.md](/Users/growduduan/pythowork/aistock/docs/detailed_design.md)
+2. [detailed_design.md](./detailed_design.md)
    详细设计
 
 ## 4. 推荐阅读顺序
 
 项目已完成所有阶段。推荐阅读顺序：
 
-1. [README.md](/Users/growduduan/pythowork/aistock/README.md) — 项目总览与快速开始
-2. [implementation_plan.md](/Users/growduduan/pythowork/aistock/docs/implementation_plan.md) — 各阶段完成状态
-3. [product.md](/Users/growduduan/pythowork/aistock/docs/product.md) — 产品目标
-4. [tech.md](/Users/growduduan/pythowork/aistock/docs/tech.md) — 技术选型
-5. [user.md](/Users/growduduan/pythowork/aistock/docs/user.md) — 使用说明
+1. [README.md](../README.md) — 项目总览与快速开始
+2. [user.md](./user.md) — **用户手册**（安装/配置/命令参考/可视化）
+3. [implementation_plan.md](./implementation_plan.md) — 各阶段完成状态
+4. [product.md](./product.md) — 产品目标
+5. [tech.md](./tech.md) — 技术选型

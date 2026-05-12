@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score, mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, roc_auc_score
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +149,15 @@ def time_split(
 
     logger.info(
         "time_split: train=%s (%s-%s), val=%s (%s-%s), test=%s (%s-%s)",
-        len(train_df), train_df["trade_date"].min(), train_df["trade_date"].max(),
-        len(val_df), val_df["trade_date"].min(), val_df["trade_date"].max(),
-        len(test_df), test_df["trade_date"].min(), test_df["trade_date"].max(),
+        len(train_df),
+        train_df["trade_date"].min(),
+        train_df["trade_date"].max(),
+        len(val_df),
+        val_df["trade_date"].min(),
+        val_df["trade_date"].max(),
+        len(test_df),
+        test_df["trade_date"].min(),
+        test_df["trade_date"].max(),
     )
 
     return TimeSplit(
@@ -167,13 +173,26 @@ def time_split(
 def _drop_non_features(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
     """剔除所有非特征列。"""
     drop_cols = [
-        "ts_code", "symbol", "trade_date", "source", "updated_at",
-        "name", "area", "industry", "market",
+        "ts_code",
+        "symbol",
+        "trade_date",
+        "source",
+        "updated_at",
+        "name",
+        "area",
+        "industry",
+        "market",
         # 标签列
         target_column,
-        "target_return_1d", "target_return_3d", "target_return_5d",
-        "target_direction_1d", "target_direction_3d", "target_direction_5d",
-        "target_up_1d", "target_up_3d", "target_up_5d",
+        "target_return_1d",
+        "target_return_3d",
+        "target_return_5d",
+        "target_direction_1d",
+        "target_direction_3d",
+        "target_direction_5d",
+        "target_up_1d",
+        "target_up_3d",
+        "target_up_5d",
     ]
     # 只删存在的列
     existing_drop = [c for c in drop_cols if c in df.columns]
@@ -357,14 +376,16 @@ def train_model(
 
     logger.info(
         "training %s for target=%s, features=%d, train=%d, val=%d, test=%d",
-        model_type, target_column, len(common_cols),
-        len(X_train), len(X_val), len(X_test),
+        model_type,
+        target_column,
+        len(common_cols),
+        len(X_train),
+        len(X_val),
+        len(X_test),
     )
 
     # 3. 训练
     if model_type == "lightgbm":
-        import lightgbm as lgb
-
         booster, best_iter = _train_lightgbm_impl(X_train, y_train, X_val, y_val)
         # 保存
         model_path = Path(model_dir) / f"{target_column}_{model_type}_{model_tag}.cbm"
@@ -476,8 +497,16 @@ def train_model(
         "test_period": split.test_period,
         "features": len(common_cols),
         "rows": {"train": len(X_train), "val": len(X_val), "test": len(X_test)},
-        "rmse": {"train": round(metrics.train_rmse, 6), "val": round(metrics.val_rmse, 6), "test": round(metrics.test_rmse, 6)},
-        "mae": {"train": round(metrics.train_mae, 6), "val": round(metrics.val_mae, 6), "test": round(metrics.test_mae, 6)},
+        "rmse": {
+            "train": round(metrics.train_rmse, 6),
+            "val": round(metrics.val_rmse, 6),
+            "test": round(metrics.test_rmse, 6),
+        },
+        "mae": {
+            "train": round(metrics.train_mae, 6),
+            "val": round(metrics.val_mae, 6),
+            "test": round(metrics.test_mae, 6),
+        },
         "auc": {
             "train": round(metrics.train_auc, 4) if metrics.train_auc else None,
             "val": round(metrics.val_auc, 4) if metrics.val_auc else None,
@@ -494,7 +523,10 @@ def train_model(
 
     logger.info(
         "training done: model=%s, val_rmse=%.6f, val_ic=%.4f, val_auc=%.4f",
-        model_path.name, metrics.val_rmse, metrics.val_ic or 0.0, metrics.val_auc or 0.0,
+        model_path.name,
+        metrics.val_rmse,
+        metrics.val_ic or 0.0,
+        metrics.val_auc or 0.0,
     )
 
     return TrainResult(

@@ -12,9 +12,8 @@
 from __future__ import annotations
 
 import logging
-import math
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -215,7 +214,11 @@ class SimBroker(BrokerAdapter):
 
         logger.info(
             "sim order filled: %s %s %d @ %.4f (reason: %s)",
-            order.side.value, order.symbol, volume, exec_price, order.comment,
+            order.side.value,
+            order.symbol,
+            volume,
+            exec_price,
+            order.comment,
         )
         return exec_report
 
@@ -241,7 +244,9 @@ class SimBroker(BrokerAdapter):
         if side == OrderSide.BUY:
             cost = volume * price * (1 + self.cfg.transaction_cost_rate)
             self._cash -= cost
-            pos = self._positions.get(symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0})
+            pos = self._positions.get(
+                symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0}
+            )
             new_vol = pos["volume"] + volume
             # avg_cost = total cost basis / total volume (cost already includes transaction fee)
             new_cost = (pos["volume"] * pos["avg_cost"] + cost) / new_vol
@@ -253,9 +258,13 @@ class SimBroker(BrokerAdapter):
         else:  # SELL
             # 执行价扣滑点，成本费率再扣，收到现金 = volume × exec_price × (1 - cost - stamp)
             exec_price = price * (1 - self.cfg.slippage_rate)
-            proceeds = volume * exec_price * (1 - self.cfg.transaction_cost_rate - self.cfg.stamp_tax_rate)
+            proceeds = (
+                volume * exec_price * (1 - self.cfg.transaction_cost_rate - self.cfg.stamp_tax_rate)
+            )
             self._cash += proceeds
-            pos = self._positions.get(symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0})
+            pos = self._positions.get(
+                symbol, {"volume": 0, "avg_cost": 0.0, "realized_pnl": 0.0, "today_volume": 0}
+            )
             pos["volume"] -= volume
             pnl = volume * (exec_price - pos["avg_cost"])  # 用实际成交价算收益
             pos["realized_pnl"] = pos.get("realized_pnl", 0.0) + pnl
@@ -264,7 +273,9 @@ class SimBroker(BrokerAdapter):
             else:
                 self._positions[symbol] = pos
 
-    def _reject(self, order_id: str, order: OrderRequest, submitted_at: str, message: str) -> OrderExecution:
+    def _reject(
+        self, order_id: str, order: OrderRequest, submitted_at: str, message: str
+    ) -> OrderExecution:
         exec_report = OrderExecution(
             order_id=order_id,
             broker_order_id=None,
@@ -280,7 +291,13 @@ class SimBroker(BrokerAdapter):
             message=message,
         )
         self._orders[order_id] = exec_report
-        logger.warning("sim order rejected: %s %s %s — %s", order.side.value, order.symbol, order.volume, message)
+        logger.warning(
+            "sim order rejected: %s %s %s — %s",
+            order.side.value,
+            order.symbol,
+            order.volume,
+            message,
+        )
         return exec_report
 
     # -------------------------------------------------------------------------
@@ -321,7 +338,9 @@ class SimBroker(BrokerAdapter):
         if volume > 0:
             self._daily_volumes[symbol] = volume
 
-    def batch_update_prices(self, prices: dict[str, float], volumes: dict[str, float] | None = None) -> None:
+    def batch_update_prices(
+        self, prices: dict[str, float], volumes: dict[str, float] | None = None
+    ) -> None:
         """批量更新行情。"""
         for sym, price in prices.items():
             self.update_market_price(sym, price, volumes.get(sym, 0.0) if volumes else 0.0)
@@ -352,17 +371,22 @@ class SimBroker(BrokerAdapter):
         }
 
         # 重置日成交量
-        self._daily_volumes = {k: 0.0 for k in self._daily_volumes}
+        self._daily_volumes = dict.fromkeys(self._daily_volumes, 0.0)
         self._trade_days += 1
 
         logger.info(
             "daily settlement [day %d]: equity=%.2f, cash=%.2f, mv=%.2f, return=%.2f%%",
-            self._trade_days, account.total_assets, account.cash, account.market_value,
+            self._trade_days,
+            account.total_assets,
+            account.cash,
+            account.market_value,
             snapshot["day_return"] * 100,
         )
         return snapshot
 
-    def get_order_history(self, symbol: str | None = None, limit: int = 100) -> list[OrderExecution]:
+    def get_order_history(
+        self, symbol: str | None = None, limit: int = 100
+    ) -> list[OrderExecution]:
         """获取订单历史。"""
         history = self._order_history[-limit:]
         if symbol:

@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from aistock.broker.base import (
     AccountInfo,
@@ -27,7 +26,7 @@ from aistock.broker.base import (
     Position,
     Quote,
 )
-from aistock.common.types import SignalAction, TradeSignal
+from aistock.common.types import TradeSignal
 from aistock.config.settings import FileConfig
 
 logger = logging.getLogger(__name__)
@@ -106,7 +105,12 @@ class ExecutionEngine:
             if exec_report.status == OrderStatus.FILLED:
                 self._log_fill(exec_report, date_str)
             elif exec_report.status == OrderStatus.REJECTED:
-                logger.warning("order rejected: %s %s — %s", exec_report.symbol, exec_report.message, order.comment)
+                logger.warning(
+                    "order rejected: %s %s — %s",
+                    exec_report.symbol,
+                    exec_report.message,
+                    order.comment,
+                )
 
             # 累加成本（使用配置中的费率）
             if exec_report.filled_volume > 0 and exec_report.avg_fill_price:
@@ -114,7 +118,11 @@ class ExecutionEngine:
                 price = exec_report.avg_fill_price
                 commission = vol * price * self.cfg.portfolio.transaction_cost_rate
                 slippage = vol * price * self.cfg.portfolio.slippage_rate
-                stamp_tax = (vol * price * self.cfg.portfolio.sim_stamp_tax_rate) if exec_report.side == OrderSide.SELL else 0.0
+                stamp_tax = (
+                    (vol * price * self.cfg.portfolio.sim_stamp_tax_rate)
+                    if exec_report.side == OrderSide.SELL
+                    else 0.0
+                )
                 cost_total += commission + slippage + stamp_tax
                 value_total += vol * price
 
@@ -133,7 +141,13 @@ class ExecutionEngine:
 
         logger.info(
             "execution report [%s]: signals=%d, orders=%d, fills=%d, rejects=%d, cost=%.2f, value=%.2f",
-            date_str, len(signals), len(orders), len(fills), len(rejects), cost_total, value_total,
+            date_str,
+            len(signals),
+            len(orders),
+            len(fills),
+            len(rejects),
+            cost_total,
+            value_total,
         )
         return report
 
@@ -169,7 +183,9 @@ class ExecutionEngine:
         # 确定方向
         pos = positions.get(signal.symbol)
         current_position_value = pos.volume * pos.last_price if pos else 0.0
-        current_weight = current_position_value / account.total_assets if account.total_assets > 0 else 0.0
+        current_weight = (
+            current_position_value / account.total_assets if account.total_assets > 0 else 0.0
+        )
 
         if target_weight > current_weight + 0.001:  # 买入
             side = OrderSide.BUY
@@ -212,8 +228,13 @@ class ExecutionEngine:
     def _log_fill(self, exec_: OrderExecution, trade_date: str) -> None:
         logger.info(
             "[%s] FILLED: %s %s %d @ %.4f (order_id=%s, comment=%s)",
-            trade_date, exec_.side.value, exec_.symbol, exec_.filled_volume,
-            exec_.avg_fill_price, exec_.order_id, exec_.message,
+            trade_date,
+            exec_.side.value,
+            exec_.symbol,
+            exec_.filled_volume,
+            exec_.avg_fill_price,
+            exec_.order_id,
+            exec_.message,
         )
 
 

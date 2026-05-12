@@ -38,7 +38,9 @@ def initialize_database(database_url: str) -> None:
 
                 compiled_column = CreateColumn(column).compile(dialect=engine.dialect)
                 try:
-                    connection.exec_driver_sql(f"ALTER TABLE {table.name} ADD COLUMN {compiled_column}")
+                    connection.exec_driver_sql(
+                        f"ALTER TABLE {table.name} ADD COLUMN {compiled_column}"
+                    )
                     existing_columns.add(column.name)
                 except OperationalError as exc:
                     if "duplicate column name" in str(exc).lower():

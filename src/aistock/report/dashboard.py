@@ -25,7 +25,16 @@ def write_trade_log(orders: list[dict], output_path: str) -> None:
         pd.DataFrame(orders).to_csv(path, index=False)
     else:
         # Write empty file with headers so downstream consumers don't crash
-        pd.DataFrame(columns=["order_id", "symbol", "side", "filled_price",
-                              "filled_weight", "filled_notional",
-                              "transaction_cost", "total_cost",
-                              "submitted_at"]).to_csv(path, index=False)
+        pd.DataFrame(
+            columns=[
+                "order_id",
+                "symbol",
+                "side",
+                "filled_price",
+                "filled_weight",
+                "filled_notional",
+                "transaction_cost",
+                "total_cost",
+                "submitted_at",
+            ]
+        ).to_csv(path, index=False)

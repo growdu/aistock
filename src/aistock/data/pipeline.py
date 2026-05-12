@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import logging
+from collections.abc import Iterable
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 import pandas as pd
 from sqlalchemy import text
 
 from aistock.config.settings import FileConfig, RuntimeSettings
-from aistock.data.sources.tushare_client import FREQ_MAP, TushareClient
+from aistock.data.sources.tushare_client import TushareClient
 from aistock.db.base import build_engine
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,9 @@ def _upsert_table(database_url: str, table_name: str, df: pd.DataFrame) -> int:
     with engine.begin() as conn:
         # 提取主键列
         inspector = __import__("sqlalchemy").inspect(engine)
-        pk_cols: list[str] = [c["name"] for c in inspector.get_pk_constraint(table_name)["constrained_columns"]]
+        pk_cols: list[str] = [
+            c["name"] for c in inspector.get_pk_constraint(table_name)["constrained_columns"]
+        ]
 
         if not pk_cols:
             logger.warning("table %s has no primary key, falling back to replace", table_name)
@@ -251,7 +254,9 @@ def sync_market_daily(
             daily_df["source"] = "tushare"
             daily_frames.append(daily_df)
 
-        daily_basic_df = client.get_daily_basic(ts_code=ts_code, start_date=start_date, end_date=end_date)
+        daily_basic_df = client.get_daily_basic(
+            ts_code=ts_code, start_date=start_date, end_date=end_date
+        )
         if daily_basic_df is not None and not daily_basic_df.empty:
             daily_basic_df["source"] = "tushare"
             daily_basic_frames.append(daily_basic_df)
@@ -263,7 +268,9 @@ def sync_market_daily(
         security_rows.append(_infer_security_row(ts_code, name))
 
     daily_all = pd.concat(daily_frames, ignore_index=True) if daily_frames else pd.DataFrame()
-    daily_basic_all = pd.concat(daily_basic_frames, ignore_index=True) if daily_basic_frames else pd.DataFrame()
+    daily_basic_all = (
+        pd.concat(daily_basic_frames, ignore_index=True) if daily_basic_frames else pd.DataFrame()
+    )
     security_df = pd.DataFrame(security_rows)
 
     data_root = Path(file_config.app.data_dir)
@@ -276,7 +283,9 @@ def sync_market_daily(
 
     if not daily_basic_all.empty:
         _write_parquet(daily_basic_all, data_root / "raw" / "daily_basic_1d.parquet")
-        results["daily_basic_1d"] = _upsert_table(runtime.database_url, "daily_basic_1d", daily_basic_all)
+        results["daily_basic_1d"] = _upsert_table(
+            runtime.database_url, "daily_basic_1d", daily_basic_all
+        )
     else:
         results["daily_basic_1d"] = 0
 
@@ -327,12 +336,11 @@ def sync_market_minute(
         return {}
 
     # 分钟线最多回溯 5 个交易日，避免一次请求过多数据
-    MAX_MINUTE_DAYS = 5
     client = TushareClient(runtime.tushare_token)
 
     symbol_list = list(symbols)
     all_bars: list[pd.DataFrame] = []
-    table_name = f"market_bar_1m"  # 目前 1m/5m/15m 共用 1m 表，通过 freq 字段区分
+    table_name = "market_bar_1m"  # 目前 1m/5m/15m 共用 1m 表，通过 freq 字段区分
 
     for ts_code in symbol_list:
         df = client.get_bars(ts_code=ts_code, start_date=start_date, end_date=end_date, freq=freq)
@@ -624,53 +632,66 @@ def sync_all(
 
     # 2. 交易日历
     results["trade_calendar"] = sync_trade_calendar(
-        runtime, file_config,
-        start_date=start_date, end_date=end_date,
+        runtime,
+        file_config,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # 3. 日线行情 + 日线指标
     results["market_daily"] = sync_market_daily(
-        runtime, file_config,
+        runtime,
+        file_config,
         symbols=symbol_list,
-        start_date=start_date, end_date=end_date,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # 4. 分钟线（可选）
     if include_minute:
         results["market_minute"] = sync_market_minute(
-            runtime, file_config,
+            runtime,
+            file_config,
             symbols=symbol_list,
-            start_date=start_date, end_date=end_date,
+            start_date=start_date,
+            end_date=end_date,
             freq=minute_freq,
         )
 
     # 5. 指数日线（市场因子）
     results["index_daily"] = sync_index_daily(
-        runtime, file_config,
-        start_date=start_date, end_date=end_date,
+        runtime,
+        file_config,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # 6. 资金流向
     results["moneyflow"] = sync_moneyflow(
-        runtime, file_config,
+        runtime,
+        file_config,
         symbols=symbol_list,
-        start_date=start_date, end_date=end_date,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # 7. 涨跌停（当日）
     results["limit_list"] = sync_limit_list(
-        runtime, file_config,
+        runtime,
+        file_config,
         trade_date=now.strftime("%Y%m%d"),
     )
 
     # 8. 财务指标（按年度，不需要每次跑）
     if sync_financial:
         results["financial_indicator"] = sync_financial_indicator(
-            runtime, file_config,
+            runtime,
+            file_config,
             symbols=symbol_list,
         )
         results["disclosure_date"] = sync_disclosure_date(
-            runtime, file_config,
+            runtime,
+            file_config,
         )
 
     logger.info("sync_all completed: %s", results)
@@ -693,4 +714,10 @@ def sync_market_data(
     兼容旧 API，推荐改用 sync_all。
     本函数仅同步日线数据。
     """
-    sync_market_daily(runtime=runtime, file_config=file_config, symbols=symbols, start_date=start_date, end_date=end_date)
+    sync_market_daily(
+        runtime=runtime,
+        file_config=file_config,
+        symbols=symbols,
+        start_date=start_date,
+        end_date=end_date,
+    )

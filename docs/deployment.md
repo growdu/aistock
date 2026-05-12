@@ -159,7 +159,7 @@ mkdir -p data/raw data/clean data/features data/models data/reports data/backups
 
 ## 6.5 创建环境变量文件
 
-参考 [.env.example](/Users/growduduan/pythowork/aistock/.env.example) 创建 `.env`：
+参考 [.env.example](../.env.example) 创建 `.env`：
 
 ```bash
 cp .env.example .env
@@ -414,7 +414,7 @@ DATABASE_URL=postgresql+psycopg://aistock:password@127.0.0.1:5432/aistock
 
 ## 12. 备份部署
 
-当前项目已补充 [scripts/backup.py](/Users/growduduan/pythowork/aistock/scripts/backup.py)。
+当前项目已补充 [scripts/backup.py](../scripts/backup.py)。
 
 备份内容：
 

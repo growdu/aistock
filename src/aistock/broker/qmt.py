@@ -39,9 +39,9 @@ _XT_INSTALLED = False
 _xt_api = None
 
 try:
-    from xtquant import xtdata
-    from xtquant import xttradegate
-    from xtquant.xttrade import XtQuantTrader
+    from xtquant import xtdata  # noqa: F401
+    from xtquant.xttrade import XtQuantTrader  # noqa: F401
+
     _XT_INSTALLED = True
 except ImportError:
     logger.warning("xtquant not installed. QMTBroker will run in simulation mode.")
@@ -268,7 +268,14 @@ class QMTBroker(BrokerAdapter):
                 filled_at=datetime.now().isoformat() if status == OrderStatus.FILLED else None,
                 message=str(result),
             )
-            logger.info("QMT order placed: %s %s %d @ %.4f, status=%s", order.side.value, order.symbol, order.volume, price, status.value)
+            logger.info(
+                "QMT order placed: %s %s %d @ %.4f, status=%s",
+                order.side.value,
+                order.symbol,
+                order.volume,
+                price,
+                status.value,
+            )
             return exec_report
 
         except Exception as exc:
@@ -305,6 +312,7 @@ class QMTBroker(BrokerAdapter):
     def is_trading_day(self, date: str | None = None) -> bool:
         try:
             import xtquant.xtdata as xtdata
+
             if date is None:
                 date = datetime.now().strftime("%Y%m%d")
             trading_days = xtdata.get_trading_days("SH", start_time="20000101", end_time="20991231")

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 # 已废弃，保留兼容性导入
 LegacyFormatter = logging.Formatter
