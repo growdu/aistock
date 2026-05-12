@@ -50,26 +50,15 @@ class RiskCheckList:
                 return RiskDecision.ADJUST
         return RiskDecision.ALLOW
 
-    def adjusted_weight(self, requested: float) -> float:
-        """返回被风控调整后的仓位。"""
-        adj = requested
-        for name, d, msg in self.checks:
+    def adjusted_weight(self, requested: float, max_pct: float = 1.0) -> float:
+        """返回被风控调整后的仓位。REJECT→0.0，ADJUST→cap到max_pct，ALLOW→原值。"""
+        for _, d, _ in self.checks:
             if d == RiskDecision.REJECT:
                 return 0.0
-            elif d == RiskDecision.ADJUST:
-                if "single_position" in name:
-                    adj = min(adj, self._parse_weight_from_msg(msg))
-        return adj
-
-    @staticmethod
-    def _parse_weight_from_msg(msg: str) -> float:
-        import re
-
-        m = re.search(r"max\s*(\d+\.?\d*)%", msg)
-        if m:
-            return float(m.group(1)) / 100.0
-        m = re.search(r"(\d+\.\d+)", msg)
-        return float(m.group(1)) if m else 0.0
+        for _, d, _ in self.checks:
+            if d == RiskDecision.ADJUST:
+                return min(requested, max_pct)
+        return requested
 
 
 # =============================================================================

@@ -27,6 +27,8 @@ from aistock.broker.base import (
     OrderType,
     Position,
     Quote,
+    calc_max_shares_by_volume,
+    is_market_open,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,10 +85,7 @@ class SimBroker(BrokerAdapter):
     def is_market_open(self) -> bool:
         if self.cfg.test_mode:
             return True
-        now = datetime.now()
-        h, m = now.hour, now.minute
-        # A 股：9:30-11:30 / 13:00-15:00
-        return (9, 30) <= (h, m) <= (11, 30) or (13, 0) <= (h, m) <= (15, 0)
+        return is_market_open()
 
     def get_quote(self, symbol: str) -> Quote | None:
         price = self._market_prices.get(symbol, 0.0)
@@ -180,7 +179,7 @@ class SimBroker(BrokerAdapter):
             if max_cost > self._cash - self._frozen_cash:
                 return self._reject(order_id, order, submitted_at, "insufficient cash")
             # 成交量限制（按实际成交股数更新 volume）
-            max_volume_by_liq = int(quote.volume * 0.05 / 100) * 100
+            max_volume_by_liq = calc_max_shares_by_volume(quote.volume)
             if volume > max_volume_by_liq:
                 volume = max_volume_by_liq
                 if volume < 100:

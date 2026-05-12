@@ -30,6 +30,7 @@ from aistock.broker.base import (
     OrderType,
     Position,
     Quote,
+    is_market_open,
 )
 
 logger = logging.getLogger(__name__)
@@ -321,6 +322,4 @@ class QMTBroker(BrokerAdapter):
             return False
 
     def is_market_open(self) -> bool:
-        now = datetime.now()
-        h, m = now.hour, now.minute
-        return (9, 30) <= (h, m) <= (11, 30) or (13, 0) <= (h, m) <= (15, 0)
+        return is_market_open()

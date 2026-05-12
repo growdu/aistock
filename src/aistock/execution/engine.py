@@ -25,6 +25,7 @@ from aistock.broker.base import (
     OrderType,
     Position,
     Quote,
+    calc_max_shares_by_volume,
 )
 from aistock.common.types import TradeSignal
 from aistock.config.settings import FileConfig
@@ -222,7 +223,7 @@ class ExecutionEngine:
         raw_shares = int(target_value / price / 100) * 100
         # 成交量限制：单笔不超过日成交量的 5%（按整手）
         daily_volume = getattr(quote, "volume", 0) or 0
-        max_by_volume = int(daily_volume * 0.05 / 100) * 100
+        max_by_volume = calc_max_shares_by_volume(daily_volume)
         return min(raw_shares, max_by_volume)
 
     def _log_fill(self, exec_: OrderExecution, trade_date: str) -> None:

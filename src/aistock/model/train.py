@@ -297,8 +297,7 @@ def _train_xgboost_impl(
     return booster, booster.best_iteration
 
 
-def _eval_regression(booster, X: pd.DataFrame, y: pd.Series) -> dict:
-    preds = booster.predict(X)
+def _eval_regression(preds: np.ndarray, y: pd.Series) -> dict:
     return {
         "rmse": float(np.sqrt(mean_squared_error(y, preds))),
         "mae": float(mean_absolute_error(y, preds)),
@@ -384,39 +383,34 @@ def train_model(
         len(X_test),
     )
 
-    # 3. 训练
+    # 3. 训练 & 保存
     if model_type == "lightgbm":
         booster, best_iter = _train_lightgbm_impl(X_train, y_train, X_val, y_val)
-        # 保存
-        model_path = Path(model_dir) / f"{target_column}_{model_type}_{model_tag}.cbm"
-        booster.save_model(str(model_path))
+        train_pred = booster.predict(X_train)
+        val_pred = booster.predict(X_val)
+        test_pred = booster.predict(X_test)
+        train_eval = _eval_regression(train_pred, y_train)
+        val_eval = _eval_regression(val_pred, y_val)
+        test_eval = _eval_regression(test_pred, y_test)
+        ext = "cbm"
     else:
         import xgboost as xgb
 
         booster, best_iter = _train_xgboost_impl(X_train, y_train, X_val, y_val)
-        model_path = Path(model_dir) / f"{target_column}_{model_type}_{model_tag}.json"
-        booster.save_model(str(model_path))
-
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 4. 评估
-    if model_type == "lightgbm":
-        train_pred = booster.predict(X_train)
-        val_pred = booster.predict(X_val)
-        test_pred = booster.predict(X_test)
-    else:
-        import xgboost as xgb
-
         dtrain = xgb.DMatrix(X_train)
         dval = xgb.DMatrix(X_val)
         dtest = xgb.DMatrix(X_test)
         train_pred = booster.predict(dtrain)
         val_pred = booster.predict(dval)
         test_pred = booster.predict(dtest)
+        train_eval = _eval_regression(train_pred, y_train)
+        val_eval = _eval_regression(val_pred, y_val)
+        test_eval = _eval_regression(test_pred, y_test)
+        ext = "json"
 
-    train_eval = _eval_regression(booster if model_type == "lightgbm" else None, X_train, y_train)
-    val_eval = _eval_regression(booster if model_type == "lightgbm" else None, X_val, y_val)
-    test_eval = _eval_regression(booster if model_type == "lightgbm" else None, X_test, y_test)
+    model_path = Path(model_dir) / f"{target_column}_{model_type}_{model_tag}.{ext}"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    booster.save_model(str(model_path))
 
     # IC
     val_ic = _compute_ic(pd.Series(val_pred, index=y_val.index), y_val)

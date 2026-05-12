@@ -234,16 +234,19 @@ def run_backtest(
 
         # === 计算当日持仓盈亏 ===
         unrealized_pnl = 0.0
+        current_prices: dict[str, float] = {}
         for sym, pos in list(positions.items()):
             price_row = day_frame[day_frame["symbol"] == sym]
             if price_row.empty:
                 continue
             current_price = float(price_row.iloc[0]["close"])
-            pos_market_value = pos.shares * current_price
-            unrealized_pnl += pos_market_value - pos.shares * pos.avg_cost
+            current_prices[sym] = current_price
+            unrealized_pnl += pos.shares * (current_price - pos.avg_cost)
 
         market_value = sum(
-            pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items()
+            pos.shares * current_prices[sym]
+            for sym, pos in positions.items()
+            if sym in current_prices
         )
         prev_equity = equity
         equity = cash + market_value
@@ -251,10 +254,9 @@ def run_backtest(
         # === 检查止损/止盈 ===
         to_close: list[str] = []
         for sym, pos in positions.items():
-            current_price = _get_day_close(day_frame, sym)
-            if current_price is None:
+            if sym not in current_prices:
                 continue
-            pct_change = current_price / pos.avg_cost - 1.0
+            pct_change = current_prices[sym] / pos.avg_cost - 1.0
             if pct_change <= config.stop_loss_pct or pct_change >= config.take_profit_pct:
                 logger.debug("stop triggered %s: %.1f%%", sym, pct_change * 100)
                 to_close.append(sym)
@@ -264,12 +266,7 @@ def run_backtest(
             pos = positions.pop(sym, None)
             if pos is None:
                 continue
-            price_row = day_frame[day_frame["symbol"] == sym]
-            if price_row.empty:
-                continue
-            sell_price = _trade_price(
-                float(price_row.iloc[0]["close"]), "sell", config.slippage_rate, config
-            )
+            sell_price = _trade_price(current_prices[sym], "sell", config.slippage_rate, config)
             proceeds = pos.shares * sell_price
             transaction_cost = proceeds * config.transaction_cost_rate
             net_proceeds = proceeds - transaction_cost
@@ -294,7 +291,9 @@ def run_backtest(
 
         # === 重新计算权益（强制平仓后） ===
         market_value = sum(
-            pos.shares * _get_day_close(day_frame, sym) for sym, pos in positions.items()
+            pos.shares * current_prices[sym]
+            for sym, pos in positions.items()
+            if sym in current_prices
         )
         equity = cash + market_value
 
@@ -345,19 +344,20 @@ def run_backtest(
             for sym in list(positions.keys()):
                 target_w = target_positions.get(sym, 0.0)
                 pos = positions[sym]
-                current_mv = pos.shares * _get_day_close(day_frame, sym)
+                current_price = _get_day_close(day_frame, sym)
+                if current_price is None:
+                    continue
+                current_mv = pos.shares * current_price
                 target_shares_val = target_w * equity
 
                 # 需要卖出
                 if target_shares_val < current_mv * 0.95:  # 5% 以下差异视为无需操作
-                    sell_shares = max(
-                        0, int((current_mv - target_shares_val) / _get_day_close(day_frame, sym))
-                    )
+                    sell_shares = max(0, int((current_mv - target_shares_val) / current_price))
                     if sell_shares >= 100:
                         price_row = day_frame[day_frame["symbol"] == sym]
                         if not price_row.empty:
                             sell_price = _trade_price(
-                                float(price_row.iloc[0]["close"]),
+                                current_price,
                                 "sell",
                                 config.slippage_rate,
                                 config,
@@ -486,15 +486,18 @@ def run_backtest(
 
         # === 记录快照 ===
         market_value = sum(
-            pos.shares * _get_day_close(day_frame, pos.symbol) for pos in positions.values()
+            pos.shares * current_prices[sym]
+            for sym, pos in positions.items()
+            if sym in current_prices
         )
         equity = cash + market_value
         peak_equity, drawdown = _update_drawdown(equity, peak_equity)
         day_return = equity / prev_equity - 1.0 if prev_equity > 0 else 0.0
 
         long_positions = {
-            pos.symbol: pos.shares * _get_day_close(day_frame, pos.symbol)
-            for pos in positions.values()
+            sym: pos.shares * current_prices[sym]
+            for sym, pos in positions.items()
+            if sym in current_prices
         }
         turnover_rate = new_trades / max(len(positions) + new_trades, 1)
 

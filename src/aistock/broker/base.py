@@ -18,9 +18,27 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# 工具函数
+# =============================================================================
+
+
+def is_market_open() -> bool:
+    """检查当前是否在 A 股交易时间内。9:30-11:30 / 13:00-15:00"""
+    now = datetime.now()
+    h, m = now.hour, now.minute
+    return (9, 30) <= (h, m) <= (11, 30) or (13, 0) <= (h, m) <= (15, 0)
+
+
+def calc_max_shares_by_volume(volume: float, pct: float = 0.05) -> int:
+    """按日均成交量的百分比计算最大可买股数（100 的整数倍）。"""
+    return int(volume * pct / 100) * 100
 
 
 # =============================================================================
@@ -170,8 +188,8 @@ class BrokerAdapter(ABC):
 
     @abstractmethod
     def is_market_open(self) -> bool:
-        """检查当前是否在交易时间内。"""
-        ...
+        """检查当前是否在交易时间内。默认使用公共的 is_market_open()"""
+        return is_market_open()
 
     @property
     @abstractmethod

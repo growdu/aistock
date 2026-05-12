@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from aistock.config.settings import FileConfig, RuntimeSettings
 from aistock.data.sources.tushare_client import TushareClient
@@ -87,7 +87,7 @@ def _upsert_table(database_url: str, table_name: str, df: pd.DataFrame) -> int:
 
     with engine.begin() as conn:
         # 提取主键列
-        inspector = __import__("sqlalchemy").inspect(engine)
+        inspector = inspect(engine)
         pk_cols: list[str] = [
             c["name"] for c in inspector.get_pk_constraint(table_name)["constrained_columns"]
         ]
@@ -261,11 +261,7 @@ def sync_market_daily(
             daily_basic_df["source"] = "tushare"
             daily_basic_frames.append(daily_basic_df)
 
-        # 从 basic 获取 name（如果存在）
-        name = ""
-        if not daily_basic_df.empty and "close" in daily_basic_df.columns:
-            name = ""
-        security_rows.append(_infer_security_row(ts_code, name))
+        security_rows.append(_infer_security_row(ts_code, ""))
 
     daily_all = pd.concat(daily_frames, ignore_index=True) if daily_frames else pd.DataFrame()
     daily_basic_all = (

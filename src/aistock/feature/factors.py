@@ -90,12 +90,10 @@ def add_tech_moving_average_features(frame: pd.DataFrame) -> pd.DataFrame:
     close = g["close"]
 
     windows = [5, 10, 20, 60, 120]
-    ma_cols: dict[int, str] = {}
     for w in windows:
         col = f"ma_{w}"
         frame[col] = close.transform(lambda x: x.rolling(w, min_periods=1).mean())
         frame[f"close_vs_ma_{w}"] = frame["close"] / frame[col] - 1.0
-        ma_cols[w] = col
 
     # 均线多头排列能量（短期均线 > 长期均线的程度）
     frame["ma_short_vs_long"] = (frame["ma_5"] / frame["ma_20"] - 1.0) + (

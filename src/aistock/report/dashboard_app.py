@@ -234,7 +234,6 @@ with tab2:
     st.subheader("当前持仓")
 
     # 从最新权益曲线快照读取持仓
-    positions_data: list[dict] = []
     if curve is not None and not curve.empty and "positions_count" in curve.columns:
         last_row = curve.iloc[-1]
         n_pos = int(last_row.get("positions_count", 0))
