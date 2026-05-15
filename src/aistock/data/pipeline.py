@@ -9,9 +9,18 @@ from typing import Any, Literal
 import pandas as pd
 from sqlalchemy import inspect, text
 
-from aistock.config.settings import FileConfig, RuntimeSettings
+from aistock.config.settings import DataSourceConfig, FileConfig, RuntimeSettings
 from aistock.data.sources.tushare_client import TushareClient
+from aistock.data.sources.akshare_client import AkShareClient
 from aistock.db.base import build_engine
+
+
+def get_client(file_config: FileConfig, runtime: RuntimeSettings):
+    """根据配置类型返回对应的数据源客户端。"""
+    if file_config.data_source.type == "akshare":
+        return AkShareClient()
+    else:
+        return TushareClient(runtime.tushare_token)
 
 logger = logging.getLogger(__name__)
 
@@ -159,11 +168,7 @@ def sync_stock_basic(
     这是其他所有数据同步的前置条件。
     返回同步的股票数量。
     """
-    if not runtime.tushare_token:
-        logger.warning("tushare token not configured, skipping stock_basic sync")
-        return 0
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     df = client.get_stock_basic(list_status=list_status)
     if df is None or df.empty:
         logger.warning("stock_basic returned empty, skipping")
@@ -201,10 +206,7 @@ def sync_trade_calendar(
     exchange: str = "SSE",
 ) -> int:
     """同步交易日历（全量替换）。"""
-    if not runtime.tushare_token:
-        return 0
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     df = client.get_trade_calendar(start_date=start_date, end_date=end_date, exchange=exchange)
     if df is None or df.empty:
         logger.warning("trade_calendar returned empty for %s %s-%s", exchange, start_date, end_date)
@@ -236,11 +238,7 @@ def sync_market_daily(
     同步日线行情和日线指标（增量 UPSERT）。
     返回每种数据的行数。
     """
-    if not runtime.tushare_token:
-        logger.warning("tushare token not configured, skipping market daily sync")
-        return {}
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     symbol_list = list(symbols)
     results: dict[str, int] = {}
 
@@ -328,11 +326,7 @@ def sync_market_minute(
     同步分钟线行情（增量 UPSERT，按 freq 分表）。
     分钟线数据量大，每次同步限制回溯天数以控制量。
     """
-    if not runtime.tushare_token:
-        return {}
-
-    # 分钟线最多回溯 5 个交易日，避免一次请求过多数据
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
 
     symbol_list = list(symbols)
     all_bars: list[pd.DataFrame] = []
@@ -392,16 +386,7 @@ def sync_financial_indicator(
     建议每年同步一次即可，不需要每日拉取。
     默认同步最近 4 年数据。
     """
-    if not runtime.tushare_token:
-        return 0
-
-    now = datetime.now()
-    if start_year is None:
-        start_year = now.year - 4
-    if end_year is None:
-        end_year = now.year
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     symbol_list = list(symbols)
     quarters = _generate_fiscal_quarters(start_year, end_year)
 
@@ -441,8 +426,7 @@ def sync_index_daily(
     同步指数日线（用于计算 beta/板块强弱等市场因子）。
     默认追踪沪深指数最近 2 年数据。
     """
-    if not runtime.tushare_token:
-        return 0
+    client = get_client(file_config, runtime)
 
     if indices is None:
         indices = CORE_INDICES
@@ -451,7 +435,6 @@ def sync_index_daily(
     if start_date is None:
         start_date = (datetime.now() - timedelta(days=730)).strftime("%Y%m%d")
 
-    client = TushareClient(runtime.tushare_token)
     index_list = list(indices)
     frames: list[pd.DataFrame] = []
 
@@ -486,10 +469,7 @@ def sync_moneyflow(
     end_date: str,
 ) -> int:
     """同步个股资金流向（增量 UPSERT）。"""
-    if not runtime.tushare_token:
-        return 0
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     symbol_list = list(symbols)
     frames: list[pd.DataFrame] = []
 
@@ -522,10 +502,7 @@ def sync_limit_list(
     trade_date: str,
 ) -> dict[str, int]:
     """同步指定日期涨跌停股票列表。"""
-    if not runtime.tushare_token:
-        return {}
-
-    client = TushareClient(runtime.tushare_token)
+    client = get_client(file_config, runtime)
     df = client.get_limit_list_d(trade_date=trade_date)
     if df is None or df.empty:
         return {}
@@ -550,8 +527,7 @@ def sync_disclosure_date(
     end_year: int | None = None,
 ) -> int:
     """同步财报披露日期（用于风控/事件驱动）。"""
-    if not runtime.tushare_token:
-        return 0
+    client = get_client(file_config, runtime)
 
     now = datetime.now()
     if start_year is None:
@@ -559,7 +535,6 @@ def sync_disclosure_date(
     if end_year is None:
         end_year = now.year
 
-    client = TushareClient(runtime.tushare_token)
     quarters = _generate_fiscal_quarters(start_year, end_year)
     frames: list[pd.DataFrame] = []
 
