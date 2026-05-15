@@ -383,12 +383,13 @@
 
 下一步验证清单：
 
-1. 运行 `aistock sync-data --mode all` 验证数据
+1. 运行 `aistock sync-data --mode all` 验证数据（Tushare 或 AkShare）
 2. 运行 `aistock build-features` 验证特征计算
 3. 运行 `aistock train-model --train-all` 验证模型
 4. 运行 `aistock run-backtest` 验证回测指标
 5. 运行 `aistock paper-trade` 验证模拟交易
 6. 启动 `streamlit` 看板验证可视化
+7. **新选择**：使用 AkShare（免费）验证数据：`DATA_SOURCE_TYPE=akshare aistock sync-data`
 
 ## 9. 阶段完成标志
 

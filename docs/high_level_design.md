@@ -63,9 +63,11 @@ flowchart LR
 
 职责：
 
-1. 接入 TuShare、券商接口、公告源、新闻源等外部数据。
+1. 接入 TuShare、AkShare、券商接口、公告源、新闻源等外部数据。
 2. 完成数据抽取、格式归一、去重和基础校验。
 3. 将原始数据写入原始数据区，并触发后续清洗任务。
+
+说明：系统支持双数据源（Tushare/AkShare），通过 `data_source.type` 配置选择，使用统一的 `DataSourceClient` 接口。
 
 ### 5.2 数据存储层
 

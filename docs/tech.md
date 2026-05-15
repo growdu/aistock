@@ -171,13 +171,28 @@
 
 ## 7.1 行情与基础面数据源
 
-选型结论：首期优先 `TuShare Pro`。
+选型结论：首期优先 `TuShare Pro`，同时支持 `AkShare` 作为免费替代方案。
 
-原因：
+**Tushare Pro：**
 
 1. 覆盖日线、分钟线、财务、基础面数据。
 2. Python 接入成本低。
 3. 对个人开发足够友好。
+
+**AkShare（免费）：**
+
+1. 开源免费，无需积分。
+2. 支持日线、分钟线、指数数据。
+3. 适合不想付费的个人用户。
+
+通过 `config/settings.yaml` 中的 `data_source.type` 切换：
+
+```yaml
+data_source:
+  type: tushare  # 或 akshare
+```
+
+两种数据源使用统一的 `DataSourceClient` 接口，pipeline.py 根据配置自动选择。
 
 ## 7.2 新闻与公告数据
 
@@ -477,6 +492,7 @@
 | 文件存储 | Parquet |
 | 核心模型 | LightGBM |
 | 备选模型 | XGBoost |
+| 数据源 | Tushare / AkShare（可选）|
 | 小模型 | 4B 量化模型 |
 | 深度学习框架 | PyTorch |
 | 回测框架 | Backtrader |
