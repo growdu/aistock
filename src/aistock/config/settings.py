@@ -37,7 +37,7 @@ class ModelConfig(BaseModel):
 
 
 class DataSourceConfig(BaseModel):
-    primary_provider: str = "tushare"
+    type: str = "tushare"  # "tushare" | "akshare"
     enable_news: bool = False
 
 

@@ -52,7 +52,7 @@ model:
 
 # ---- 数据源配置 ----
 data_source:
-  primary_provider: tushare
+  type: tushare  # tushare | akshare
   # 是否启用新闻面数据
   enable_news: false
 
